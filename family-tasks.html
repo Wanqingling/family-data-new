@@ -1312,27 +1312,37 @@ let syncTimer = null;
 
 function setSyncStatus(text, cls) {
   const el = document.getElementById('syncStatus');
-  if (el) { el.textContent = text; el.className = 'sync-status ' + (cls || ''); }
+  if (el) {
+    el.textContent = text;
+    el.className = 'sync-status ' + (cls || '');
+    if (cls === 'error') {
+      el.style.cursor = 'pointer';
+      el.onclick = () => fetchFromGitHub().then(() => renderAll());
+      el.title = '点击重试';
+      // 5 秒后自动重试一次
+      setTimeout(() => fetchFromGitHub().then(() => renderAll()), 5000);
+    } else {
+      el.style.cursor = 'default';
+      el.onclick = null;
+    }
+  }
 }
 
 // 从 GitHub 拉取最新数据
 async function fetchFromGitHub() {
   try {
     setSyncStatus('⏳ 同步中...', 'loading');
-    const res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}?ref=${GH.branch}`, {
-      headers: { 'Authorization': 'token ' + GH.token }
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
+    const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}?ref=${GH.branch}`;
+    const data = await ghRequest(url);
+
     ghFileSha = data.sha;
     const content = JSON.parse(atob(data.content));
 
-    // 合并数据：GitHub 数据优先（取更新的那个）
+    // 合并数据：以时间戳决定谁更新
     const localTime = parseInt(localStorage.getItem('lastSyncTime') || '0');
     const ghTime = content.timestamp || 0;
 
     if (ghTime > localTime) {
-      // GitHub 更新，覆盖本地
       if (content.tasks) { state = content.tasks; localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
       if (content.rules) { localStorage.setItem(RULES_KEY, JSON.stringify(content.rules)); }
       if (content.deducts) { localStorage.setItem(DEDUCTS_KEY, JSON.stringify(content.deducts)); }
@@ -1343,26 +1353,45 @@ async function fetchFromGitHub() {
     }
     return true;
   } catch (e) {
-    console.warn('GitHub fetch failed:', e);
-    setSyncStatus('⚠️ 离线模式', 'error');
+    console.warn('GitHub fetch failed:', e.message || e);
+    setSyncStatus('⚠️ 离线模式（' + (e.message || '未知错误') + '）', 'error');
     return false;
   }
+}
+
+// 通用 XHR 请求（兼容微信浏览器）
+function ghRequest(url, method, body) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method || 'GET', url, true);
+    xhr.setRequestHeader('Authorization', 'token ' + GH.token);
+    if (body) xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+        else reject(new Error(data.message || 'HTTP ' + xhr.status));
+      } catch(e) { reject(new Error('Parse error')); }
+    };
+    xhr.onerror = () => reject(new Error('网络错误'));
+    xhr.ontimeout = () => reject(new Error('请求超时'));
+    xhr.timeout = 10000;
+    xhr.send(body ? JSON.stringify(body) : null);
+  });
 }
 
 // 推送到 GitHub
 async function pushToGitHub() {
   try {
     setSyncStatus('⏳ 保存中...', 'loading');
+    const apiUrl = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`;
 
     // 先获取最新 SHA（防止冲突）
     if (!ghFileSha) {
-      const res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}?ref=${GH.branch}`, {
-        headers: { 'Authorization': 'token ' + GH.token }
-      });
-      if (res.ok) {
-        const d = await res.json();
+      try {
+        const d = await ghRequest(apiUrl + '?ref=' + GH.branch);
         ghFileSha = d.sha;
-      }
+      } catch(e) { console.warn('Get SHA failed:', e); }
     }
 
     const now = Date.now();
@@ -1381,27 +1410,13 @@ async function pushToGitHub() {
       branch: GH.branch
     };
 
-    const res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': 'token ' + GH.token,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'HTTP ' + res.status);
-    }
-
-    const result = await res.json();
+    const result = await ghRequest(apiUrl, 'PUT', body);
     ghFileSha = result.content.sha;
     localStorage.setItem('lastSyncTime', String(now));
     setSyncStatus('✅ 已同步', 'ok');
   } catch (e) {
-    console.warn('GitHub push failed:', e);
-    setSyncStatus('⚠️ 保存失败，稍后重试', 'error');
+    console.warn('GitHub push failed:', e.message || e);
+    setSyncStatus('⚠️ 保存失败，点击重试', 'error');
   }
 }
 
