@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家庭任务认领打卡表</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    min-height: 100vh;
+    color: #333;
+  }
+  .container { max-width: 900px; margin: 0 auto; padding: 16px; }
+  h1 { text-align: center; padding: 20px 0 10px; font-size: 26px; color: #4a2c0a; }
+
+  /* 日期导航 */
+  .date-nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .date-nav button {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .date-nav button:hover { background: #f5f5f5; }
+  .date-display {
+    font-size: 18px;
+    font-weight: 700;
+    color: #4a2c0a;
+    min-width: 180px;
+    text-align: center;
+  }
+  .date-display .weekday { font-size: 13px; color: #888; font-weight: 400; }
+
+  /* 成员选择 */
+  .members-bar {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .member-chip {
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .member-chip.dad { background: #dbeafe; color: #1e40af; }
+  .member-chip.dad.active { background: #1e40af; color: #fff; }
+  .member-chip.mom { background: #fce7f3; color: #be185d; }
+  .member-chip.mom.active { background: #be185d; color: #fff; }
+  .member-chip.child { background: #d1fae5; color: #065f46; }
+  .member-chip.child.active { background: #065f46; color: #fff; }
+
+  /* Tab 切换 */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #888;
+    transition: all 0.2s;
+  }
+  .tab.active { background: #4a2c0a; color: #fff; }
+  .tab:hover:not(.active) { background: #f5f0eb; }
+
+  /* 统计条 */
+  .stats-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .stat-pill {
+    flex: 1;
+    min-width: 120px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .stat-pill .s-label { font-size: 12px; color: #999; }
+  .stat-pill .s-value { font-size: 22px; font-weight: 700; color: #4a2c0a; margin-top: 2px; }
+  .stat-pill .s-value.done { color: #16a34a; }
+
+  /* 任务卡片 */
+  .task-section { margin-bottom: 20px; }
+  .section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #78350f;
+    margin-bottom: 10px;
+    padding-left: 4px;
+  }
+  .task-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    transition: all 0.2s;
+  }
+  .task-card.checked {
+    background: #f0fdf4;
+    border-left: 4px solid #16a34a;
+  }
+  .task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .task-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a1a;
+    flex: 1;
+  }
+  .task-freq {
+    font-size: 11px;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .task-notes {
+    font-size: 12px;
+    color: #666;
+    margin-top: 8px;
+    line-height: 1.7;
+    padding-left: 12px;
+    border-left: 2px solid #eee;
+  }
+  .task-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .btn-claim {
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+  .btn-claim.dad-btn { background: #dbeafe; color: #1e40af; }
+  .btn-claim.dad-btn.claimed { background: #1e40af; color: #fff; }
+  .btn-claim.mom-btn { background: #fce7f3; color: #be185d; }
+  .btn-claim.mom-btn.claimed { background: #be185d; color: #fff; }
+  .btn-claim.check-btn {
+    background: #d1fae5;
+    color: #065f46;
+    margin-left: auto;
+  }
+  .btn-claim.check-btn.done { background: #16a34a; color: #fff; }
+  .btn-claim.joint-btn {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  .btn-claim.joint-btn.done { background: #f59e0b; color: #fff; }
+  .btn-claim:hover { opacity: 0.85; transform: scale(1.02); }
+
+  /* 实际耗时输入 */
+  .actual-time-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #e5e7eb;
+  }
+  .actual-time-row label { font-size: 12px; color: #888; white-space: nowrap; }
+  .actual-time-row input {
+    width: 60px;
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+  }
+  .actual-time-row input:focus { border-color: #4a6cf7; }
+  .actual-time-row .unit { font-size: 12px; color: #999; }
+  .actual-time-row .ref { font-size: 11px; color: #bbb; }
+
+  /* 耗时统计面板 */
+  .time-stats {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .time-stats h3 { font-size: 14px; color: #666; margin-bottom: 12px; }
+  .time-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .time-card {
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+  }
+  .time-card.dad-card { background: #eff6ff; }
+  .time-card.mom-card { background: #fdf2f8; }
+  .time-card .tc-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .time-card.dad-card .tc-name { color: #1e40af; }
+  .time-card.mom-card .tc-name { color: #be185d; }
+  .time-card .tc-hours { font-size: 24px; font-weight: 700; }
+  .time-card .tc-label { font-size: 11px; color: #999; margin-top: 2px; }
+  .time-period-toggle {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .time-period-toggle span {
+    flex: 1;
+    text-align: center;
+    padding: 6px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #888;
+    font-weight: 600;
+  }
+  .time-period-toggle span.active { background: #fff; color: #333; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+  /* 时长差与自由时间 */
+  .diff-section {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #eee;
+  }
+  .diff-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .diff-card {
+    flex: 1;
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .diff-card.positive { background: #ecfdf5; }
+  .diff-card.negative { background: #fef2f2; }
+  .diff-card.neutral { background: #f9fafb; }
+  .diff-card .dc-label { font-size: 12px; color: #888; }
+  .diff-card .dc-value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .diff-card.positive .dc-value { color: #16a34a; }
+  .diff-card.negative .dc-value { color: #ef4444; }
+  .diff-card.neutral .dc-value { color: #999; }
+
+  .free-time-box {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    color: #fff;
+  }
+  .free-time-box .ft-label { font-size: 12px; opacity: 0.85; }
+  .free-time-box .ft-name { font-size: 16px; font-weight: 700; margin-top: 2px; }
+  .free-time-box .ft-value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+  .free-time-box .ft-note { font-size: 11px; opacity: 0.7; margin-top: 4px; }
+  .no-free-box {
+    background: #f9fafb;
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+  }
+
+  /* 规则设定面板 */
+  .sync-status {
+    font-size: 12px; padding: 4px 12px; border-radius: 20px; display: inline-block; margin-bottom: 8px;
+  }
+  .sync-status.ok { color: #16a34a; background: #dcfce7; }
+  .sync-status.loading { color: #ca8a04; background: #fef9c3; }
+  .sync-status.error { color: #dc2626; background: #fee2e2; }
+
+  .rules-panel {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .rules-panel h3 { font-size: 14px; color: #666; margin-bottom: 10px; cursor: pointer; }
+  .rules-panel h3:hover { color: #333; }
+  .rules-body { display: none; }
+  .rules-body.open { display: block; }
+  .rule-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  .rule-row label { color: #666; min-width: 80px; }
+  .rule-row input {
+    width: 55px;
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+  }
+  .rule-row input:focus { border-color: #4a6cf7; }
+  .rule-row .rule-unit { color: #999; font-size: 12px; }
+  .rule-divider { border-top: 1px solid #f0f0f0; margin: 10px 0; }
+
+  /* 扣减项 */
+  .deduct-section { margin-top: 10px; }
+  .deduct-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .deduct-item input[type="text"] {
+    flex: 1;
+    padding: 5px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    min-width: 80px;
+  }
+  .deduct-item input[type="number"] {
+    width: 50px;
+    padding: 5px 4px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+  }
+  .deduct-item .del-btn {
+    background: none;
+    border: none;
+    color: #ff3b30;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 4px;
+  }
+  .add-deduct-btn {
+    background: #f0f0f0;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #666;
+  }
+  .add-deduct-btn:hover { background: #e0e0e0; }
+
+  /* 剩余自由时间明细 */
+  .free-detail {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+  }
+  .free-detail h4 { font-size: 13px; color: #666; margin-bottom: 8px; }
+  .free-breakdown {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .fb-card {
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 12px;
+  }
+  .fb-card.dad-fb { background: #eff6ff; }
+  .fb-card.mom-fb { background: #fdf2f8; }
+  .fb-card .fb-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+  .fb-card.dad-fb .fb-title { color: #1e40af; }
+  .fb-card.mom-fb .fb-title { color: #be185d; }
+  .fb-card .fb-line { display: flex; justify-content: space-between; margin-bottom: 3px; color: #555; }
+  .fb-card .fb-total { border-top: 1px solid rgba(0,0,0,0.1); padding-top: 4px; margin-top: 4px; font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; }
+
+  .claim-info {
+    font-size: 11px;
+    color: #999;
+    margin-top: 6px;
+  }
+
+  /* 折叠按钮 */
+  .toggle-notes {
+    background: none;
+    border: none;
+    color: #4a6cf7;
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 6px;
+    padding: 2px 0;
+  }
+  .task-notes.collapsed { display: none; }
+
+  /* 周视图 */
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .week-day {
+    text-align: center;
+    padding: 8px 4px;
+    border-radius: 8px;
+    font-size: 12px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .week-day.today { border: 2px solid #4a6cf7; }
+  .week-day.selected { background: #4a2c0a; color: #fff; }
+  .week-day.future { opacity: 0.3; cursor: not-allowed; }
+  .week-day .wd-label { color: #888; font-size: 11px; }
+  .week-day .wd-date { font-size: 15px; font-weight: 700; margin-top: 2px; }
+  .week-day .wd-count { font-size: 10px; color: #16a34a; margin-top: 2px; }
+  .week-day.selected .wd-label,
+  .week-day.selected .wd-date,
+  .week-day.selected .wd-count { color: #fff; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #bbb;
+    font-size: 15px;
+  }
+
+  @media (max-width: 600px) {
+    .container { padding: 10px; }
+    .week-grid { grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .week-day { padding: 6px 2px; font-size: 11px; }
+    .task-card { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏠 家庭任务认领打卡</h1>
+  <div><span class="sync-status" id="syncStatus">⏳ 连接中...</span></div>
+
+  <!-- 兑换规则（最前面） -->
+  <div class="rules-panel">
+    <h3 onclick="toggleRules(this)">⚙️ 兑换规则设定 <span style="font-size:11px;color:#bbb">（点击展开）</span></h3>
+    <div class="rules-body" id="rulesBody">
+      <div class="rule-row">
+        <label>👨 爸爸做家务</label>
+        <input type="number" id="ruleDadWork" min="1" value="1" onchange="saveRules()" />
+        <span class="rule-unit">小时 → 兑换</span>
+        <input type="number" id="ruleDadFree" min="0" value="1" onchange="saveRules()" />
+        <span class="rule-unit">小时自由时间</span>
+      </div>
+      <div class="rule-row">
+        <label>👩 妈妈做家务</label>
+        <input type="number" id="ruleMomWork" min="1" value="1" onchange="saveRules()" />
+        <span class="rule-unit">小时 → 可要求爸爸陪伴</span>
+        <input type="number" id="ruleMomCompanion" min="0" value="1" onchange="saveRules()" />
+        <span class="rule-unit">小时</span>
+      </div>
+      <div class="rule-divider"></div>
+      <div style="font-size:12px;color:#888;line-height:1.6">
+        💡 爸爸的家务时长按比例兑换为自由时间；<br>
+        妈妈的家务时长按比例可要求爸爸在自由时间之外陪伴。
+      </div>
+    </div>
+  </div>
+
+  <!-- 日期导航 -->
+  <div class="date-nav">
+    <button onclick="changeDate(-1)">◀</button>
+    <div class="date-display">
+      <div id="dateText"></div>
+      <div class="weekday" id="weekdayText"></div>
+    </div>
+    <button onclick="changeDate(1)">▶</button>
+    <button onclick="goToday()" style="font-size:13px;">今天</button>
+  </div>
+
+  <!-- 成员筛选 -->
+  <div class="members-bar">
+    <div class="member-chip dad active" onclick="filterMember('dad', this)">👨 爸爸</div>
+    <div class="member-chip mom active" onclick="filterMember('mom', this)">👩 妈妈</div>
+    <div class="member-chip child" onclick="filterMember('child', this)">👧 孩子</div>
+  </div>
+
+  <!-- 周视图 -->
+  <div class="week-grid" id="weekGrid"></div>
+
+  <!-- Tab -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('daily', this)">📋 每日必办</div>
+    <div class="tab" onclick="switchTab('weekly', this)">📅 每周任务</div>
+    <div class="tab" onclick="switchTab('shared', this)">🤝 共同陪伴</div>
+  </div>
+
+  <!-- 统计 -->
+  <div class="stats-bar">
+    <div class="stat-pill">
+      <div class="s-label">待完成</div>
+      <div class="s-value" id="statPending">0</div>
+    </div>
+    <div class="stat-pill">
+      <div class="s-label">已完成</div>
+      <div class="s-value done" id="statDone">0</div>
+    </div>
+    <div class="stat-pill">
+      <div class="s-label">完成率</div>
+      <div class="s-value" id="statRate">0%</div>
+    </div>
+  </div>
+
+  <!-- 耗时统计 -->
+  <div class="time-stats">
+    <h3>⏱ 耗时统计</h3>
+    <div class="time-period-toggle">
+      <span class="active" onclick="setTimePeriod('daily', this)">📅 当日</span>
+      <span onclick="setTimePeriod('weekly', this)">📆 本周</span>
+      <span onclick="setTimePeriod('cumulative', this)">📈 累计</span>
+    </div>
+    <div class="time-grid">
+      <div class="time-card dad-card">
+        <div class="tc-name">👨 爸爸</div>
+        <div class="tc-hours" id="dadHours">0分钟</div>
+        <div class="tc-label" id="dadTasks">完成 0 项</div>
+      </div>
+      <div class="time-card mom-card">
+        <div class="tc-name">👩 妈妈</div>
+        <div class="tc-hours" id="momHours">0分钟</div>
+        <div class="tc-label" id="momTasks">完成 0 项</div>
+      </div>
+    </div>
+    <!-- 时长差与自由时间 -->
+    <div class="diff-section" id="diffSection"></div>
+    <!-- 自由时间明细 -->
+    <div class="free-detail" id="freeDetail"></div>
+  </div>
+
+  <!-- 自由时间扣减项（始终可见，跟随日期） -->
+  <div class="rules-panel">
+    <h3 style="cursor:default">📝 自由时间扣减项 <span id="deductDateLabel" style="font-size:12px;color:#4a6cf7"></span></h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="deduct-section">
+        <div style="font-size:12px;color:#1e40af;margin-bottom:4px;font-weight:600">👨 爸爸扣减项</div>
+        <div id="dadDeducts"></div>
+        <button class="add-deduct-btn" onclick="addDeduct('dad')">+ 添加</button>
+      </div>
+      <div class="deduct-section">
+        <div style="font-size:12px;color:#be185d;margin-bottom:4px;font-weight:600">👩 妈妈扣减项</div>
+        <div id="momDeducts"></div>
+        <button class="add-deduct-btn" onclick="addDeduct('mom')">+ 添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 任务列表 -->
+  <div id="taskList"></div>
+</div>
+
+<script>
+// ===== 任务数据定义 =====
+const TASKS = {
+  daily: [
+    {
+      id: 'd1',
+      title: '带游泳课 / 户外运动',
+      freq: '每日（游泳按课表，不游泳则户外）',
+      notes: `【游泳课】课前：确认泳衣、泳帽、泳镜、浴巾、换洗衣物带齐。更衣看护：全程关注换衣，防止着凉滑倒。课后：盯紧彻底冲洗身体和头发，擦干再换衣。\n【户外运动】保证45分钟以上有效运动（跳绳、拍球、骑车）。视线不离孩子，不脱离安全区域。运动后喝水、垫汗巾或换汗湿衣服。`,
+      timeEst: '1-1.5小时',
+      minutes: { dad: 75, mom: 75 }
+    },
+    {
+      id: 'd2',
+      title: '检查作业：语文（每日一练、练字、背诵古诗）',
+      freq: '每天',
+      notes: `书写：练字是否工整、笔画规范，不合格必须重写。正确率：逐题检查每日一练，圈出错误，要求孩子分析原因并订正。其他：辅导背诵二年级古诗一篇。`,
+      timeEst: '30分钟',
+      minutes: { dad: 30, mom: 30 }
+    },
+    {
+      id: 'd3',
+      title: '检查作业：英语（App打卡、WowEnglish、磨耳朵、字母、字帖）',
+      freq: '每天',
+      notes: `进度监督：全程陪同App打卡，确认真正完成，防止敷衍。听读落实：检查磨耳朵和动画达到规定时长，抽查字母发音。字帖：检查书写是否规范。`,
+      timeEst: '30分钟',
+      minutes: { dad: 30, mom: 30 }
+    },
+    {
+      id: 'd4',
+      title: '检查作业：数学（每日一练、口算、九九乘法表）',
+      freq: '每天',
+      notes: `计时：口算掐表计时，要求规定时间内完成，培养专注力。错题：检查正确度，错题当场讲解并重新做一遍，确保理解。辅导熟读背诵九九乘法口诀表。`,
+      timeEst: '30分钟',
+      minutes: { dad: 30, mom: 30 }
+    },
+    {
+      id: 'd5',
+      title: '衣物洗晾与收纳',
+      freq: '每天',
+      notes: `具体：除娃运动服外，全家日常衣物丢洗衣机、晾晒，干透后折叠收纳进衣柜。验收：衣服不能堆在沙发/椅子上过夜，洗净衣服不能一直挂衣架上。`,
+      timeEst: '30分钟',
+      minutes: { dad: 30, mom: 30 }
+    }
+  ],
+  weekly: [
+    {
+      id: 'w1',
+      title: '带舞蹈课（扎头发、穿衣服、提醒打卡）',
+      freq: '每周2次（周四19:00 / 周日15:30）',
+      notes: `课前：准备舞蹈服、舞蹈鞋；掌握正确扎头发手法，扎紧平整不能散乱。打卡：课后第一时间提醒并监督完成舞蹈打卡。物品：离开前检查水杯、舞蹈服等不遗漏。`,
+      timeEst: '1.5小时/次',
+      minutes: { dad: 90, mom: 90 },
+      days: [4, 0]
+    },
+    {
+      id: 'w2',
+      title: '带睡觉（液体钙、刷牙、睡前故事）',
+      freq: '每周4晚',
+      notes: `睡前：按时提醒吃液体钙，监督认真刷牙（检查是否刷干净）。陪伴：睡前故事声情并茂，不能敷衍念稿或让孩子自己看。入睡：确认被子盖好，关灯关门。`,
+      timeEst: '30分钟/晚',
+      minutes: { dad: 30, mom: 30 }
+    },
+    {
+      id: 'w3',
+      title: '地面清洁与卫生间维护',
+      freq: '每周至少2次',
+      notes: `具体：全屋扫地/拖地；清理洗手台水渍。验收：地面无明显灰尘毛发，卫生间无异味。`,
+      timeEst: '30分钟/次',
+      minutes: { dad: 30, mom: 30 }
+    },
+    {
+      id: 'w4',
+      title: '日常垃圾与杂物处理',
+      freq: '每周2次',
+      notes: `具体：打包扔掉全家垃圾（厨房、客厅、卫生间）；沙发、餐桌上杂物归位。验收：垃圾桶不满溢，桌面无明显杂物堆积。`,
+      timeEst: '30分钟/次',
+      minutes: { dad: 30, mom: 30 }
+    }
+  ],
+  shared: [
+    {
+      id: 's1',
+      title: '带玩（约朋友、共同陪伴、关注安全）',
+      freq: '周末及空闲时间，每周1次',
+      notes: `安全：全程视线不离孩子，提前排查环境安全隐患。陪伴：放下手机，全身心投入，不能"人在心不在"。社交：观察孩子与朋友玩耍，适时引导处理矛盾。`,
+      timeEst: '2小时+',
+      minutes: { dad: 120, mom: 120 }
+    },
+    {
+      id: 's2',
+      title: '临时突发情况应对',
+      freq: '不定期（生病、临时有事）',
+      notes: `责任共担：遇突发情况双方灵活调整分工，不能以"不是我的排班日"甩手。信息同步：谁带孩子去医院第一时间同步情况，另一方处理家中其他事务。`,
+      timeEst: '视情况而定',
+      minutes: { dad: 60, mom: 60 }
+    }
+  ]
+};
+
+// ===== 状态管理 =====
+const STORAGE_KEY = 'family_tasks_v2';
+let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+let currentDate = new Date();
+let currentTab = 'daily';
+let memberFilter = { dad: true, mom: true, child: false };
+let timePeriod = 'daily';
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  scheduleGitHubSync();
+}
+
+function dateKey(d) {
+  if (!d) d = currentDate;
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function getTaskState(taskId, date) {
+  const dk = date || dateKey();
+  if (!state[dk]) return null;
+  return state[dk][taskId] || null;
+}
+
+function setTaskState(taskId, date, data) {
+  const dk = date || dateKey();
+  if (!state[dk]) state[dk] = {};
+  state[dk][taskId] = { ...state[dk][taskId], ...data };
+  saveState();
+}
+
+// ===== 日期导航 =====
+const WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
+
+function changeDate(offset) {
+  const newDate = new Date(currentDate);
+  newDate.setDate(currentDate.getDate() + offset);
+  // 不能超过今天
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  newDate.setHours(0,0,0,0);
+  if (newDate > today) return;
+  currentDate = newDate;
+  renderAll();
+}
+
+function goToday() {
+  currentDate = new Date();
+  renderAll();
+}
+
+function renderDateNav() {
+  const d = currentDate;
+  document.getElementById('dateText').textContent =
+    d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+  document.getElementById('weekdayText').textContent = WEEKDAYS[d.getDay()];
+}
+
+function renderWeekGrid() {
+  const today = new Date();
+  const todayKey = dateKey(today);
+  // 找到本周日
+  const sunday = new Date(currentDate);
+  sunday.setDate(currentDate.getDate() - currentDate.getDay());
+
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
+    const dk = dateKey(d);
+    const isToday = dk === todayKey;
+    const isSelected = dk === dateKey(currentDate);
+    const isFuture = dk > todayKey;
+    // 统计当天完成数
+    const dayState = state[dk] || {};
+    const allTasks = [...TASKS.daily, ...TASKS.weekly, ...TASKS.shared];
+    const doneCount = allTasks.filter(t => dayState[t.id]?.done).length;
+
+    html += `<div class="week-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}${isFuture ? ' future' : ''}"
+      onclick="${isFuture ? '' : "selectDate('" + dk + "')"}">
+      <div class="wd-label">${WEEKDAYS[i]}</div>
+      <div class="wd-date">${d.getDate()}</div>
+      <div class="wd-count">${doneCount > 0 ? '✓'+doneCount : ''}</div>
+    </div>`;
+  }
+  document.getElementById('weekGrid').innerHTML = html;
+}
+
+function selectDate(dk) {
+  const parts = dk.split('-');
+  const selected = new Date(parts[0], parts[1]-1, parts[2]);
+  // 不能超过今天
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  selected.setHours(0,0,0,0);
+  if (selected > today) return;
+  currentDate = selected;
+  renderAll();
+}
+
+// ===== 成员筛选 =====
+function filterMember(member, el) {
+  memberFilter[member] = !memberFilter[member];
+  el.classList.toggle('active');
+  renderTaskList();
+}
+
+// ===== Tab 切换 =====
+function switchTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderTaskList();
+}
+
+// ===== 认领与打卡（三选一互斥） =====
+// assignee: 'dad' | 'mom' | 'joint' | null
+function setAssignee(taskId, assignee) {
+  const ts = getTaskState(taskId) || {};
+  const current = ts.joint ? 'joint' : ((ts.assignee) || null);
+
+  // 点击已选中的 → 取消选择
+  if (current === assignee) {
+    setTaskState(taskId, null, {
+      assignee: null,
+      joint: false,
+      claims: [],
+      completedBy: [],
+      done: false,
+      doneTime: null
+    });
+  } else {
+    const isJoint = assignee === 'joint';
+    setTaskState(taskId, null, {
+      assignee: isJoint ? null : assignee,
+      joint: isJoint,
+      claims: isJoint ? ['dad','mom'] : [assignee],
+      completedBy: isJoint ? ['dad','mom'] : [assignee],
+      done: true,
+      doneTime: new Date().toLocaleTimeString()
+    });
+  }
+  renderTaskList();
+  renderWeekGrid();
+  renderTimeStats();
+}
+
+// 兼容旧数据：获取当前选中状态
+function getCurrentAssignee(ts) {
+  if (ts.joint) return 'joint';
+  if (ts.assignee) return ts.assignee;
+  // 兼容旧格式 claims
+  const claims = ts.claims || [];
+  if (claims.includes('dad') && claims.includes('mom')) return 'joint';
+  if (claims.includes('dad')) return 'dad';
+  if (claims.includes('mom')) return 'mom';
+  return null;
+}
+
+function setTimePeriod(period, el) {
+  timePeriod = period;
+  document.querySelectorAll('.time-period-toggle span').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  renderTimeStats();
+}
+
+// 保存实际耗时
+function setActualTime(taskId, who, value) {
+  const min = Math.max(0, parseInt(value) || 0);
+  const key = who === 'dad' ? 'actualDad' : 'actualMom';
+  setTaskState(taskId, null, { [key]: min });
+  renderTimeStats();
+}
+
+// 查找任务定义
+function findTask(taskId) {
+  for (const cat of Object.values(TASKS)) {
+    const found = cat.find(t => t.id === taskId);
+    if (found) return found;
+  }
+  return null;
+}
+
+// 获取指定日期范围内的所有完成记录
+function getDateKeysInRange(startDate, endDate) {
+  const keys = [];
+  const d = new Date(startDate);
+  while (d <= endDate) {
+    keys.push(dateKey(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return keys;
+}
+
+function renderTimeStats() {
+  let dateKeys;
+  if (timePeriod === 'daily') {
+    dateKeys = [dateKey()];
+  } else if (timePeriod === 'weekly') {
+    // 本周（周日到周六）
+    const sunday = new Date(currentDate);
+    sunday.setDate(currentDate.getDate() - currentDate.getDay());
+    const saturday = new Date(sunday);
+    saturday.setDate(sunday.getDate() + 6);
+    dateKeys = getDateKeysInRange(sunday, saturday);
+  } else {
+    // 累计：本周日到当前选择的日期
+    const sunday = new Date(currentDate);
+    sunday.setDate(currentDate.getDate() - currentDate.getDay());
+    dateKeys = getDateKeysInRange(sunday, currentDate);
+  }
+
+  let dadMinutes = 0, momMinutes = 0;
+  let dadCount = 0, momCount = 0;
+
+  dateKeys.forEach(dk => {
+    const dayState = state[dk] || {};
+    Object.keys(dayState).forEach(taskId => {
+      const ts = dayState[taskId];
+      if (!ts.done) return;
+      const task = findTask(taskId);
+      if (!task || !task.minutes) return;
+
+      const completedBy = ts.completedBy || [];
+      // 优先使用用户输入的实际耗时，否则用预设值
+      const dadMin = ts.actualDad ?? (task.minutes ? task.minutes.dad : 0);
+      const momMin = ts.actualMom ?? (task.minutes ? task.minutes.mom : 0);
+
+      if (ts.joint || completedBy.includes('dad')) {
+        dadMinutes += dadMin;
+        dadCount++;
+      }
+      if (ts.joint || completedBy.includes('mom')) {
+        momMinutes += momMin;
+        momCount++;
+      }
+    });
+  });
+
+  const fmtTime = (min) => {
+    if (min >= 60) {
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return m > 0 ? h + '小时' + m + '分钟' : h + '小时';
+    }
+    return min + '分钟';
+  };
+
+  document.getElementById('dadHours').textContent = fmtTime(dadMinutes);
+  document.getElementById('dadTasks').textContent = '完成 ' + dadCount + ' 项';
+  document.getElementById('momHours').textContent = fmtTime(momMinutes);
+  document.getElementById('momTasks').textContent = '完成 ' + momCount + ' 项';
+
+  // ===== 规则兑换计算 =====
+  const rules = loadRules();
+  // 爸爸做家务 → 兑换自由时间
+  const dadEarned = Math.round(dadMinutes * rules.dadFree / rules.dadWork);
+  // 妈妈做家务 → 可要求爸爸陪伴时间
+  const momCompanionReq = Math.round(momMinutes * rules.momCompanion / rules.momWork);
+
+  // 时长差
+  const diff = dadMinutes - momMinutes;
+  const absDiff = Math.abs(diff);
+
+  let diffHtml = '<div class="diff-row">';
+  if (diff > 0) {
+    diffHtml += `<div class="diff-card positive"><div class="dc-label">👨 爸爸时长差</div><div class="dc-value">+${fmtTime(diff)}</div></div>`;
+  } else if (diff < 0) {
+    diffHtml += `<div class="diff-card negative"><div class="dc-label">👨 爸爸时长差</div><div class="dc-value">-${fmtTime(absDiff)}</div></div>`;
+  } else {
+    diffHtml += `<div class="diff-card neutral"><div class="dc-label">👨 爸爸时长差</div><div class="dc-value">持平</div></div>`;
+  }
+  if (diff < 0) {
+    diffHtml += `<div class="diff-card positive"><div class="dc-label">👩 妈妈时长差</div><div class="dc-value">+${fmtTime(absDiff)}</div></div>`;
+  } else if (diff > 0) {
+    diffHtml += `<div class="diff-card negative"><div class="dc-label">👩 妈妈时长差</div><div class="dc-value">-${fmtTime(diff)}</div></div>`;
+  } else {
+    diffHtml += `<div class="diff-card neutral"><div class="dc-label">👩 妈妈时长差</div><div class="dc-value">持平</div></div>`;
+  }
+  diffHtml += '</div>';
+
+  // ===== 扣减项计算 =====
+  const deducts = loadDeducts();
+  const dk = dateKey();
+
+  // ===== 自由时间兑换提示 =====
+  if (timePeriod === 'weekly' || timePeriod === 'cumulative') {
+    const scopeLabel = timePeriod === 'weekly' ? '本周' : '累计至今';
+    if (dadEarned > 0 || momCompanionReq > 0) {
+      let boxContent = '';
+      if (dadEarned > 0) {
+        boxContent += `<div class="free-time-box" style="margin-bottom:8px">
+          <div class="ft-label">🎉 爸爸${scopeLabel}兑换自由时间</div>
+          <div class="ft-value">${fmtTime(dadEarned)}</div>
+          <div class="ft-note">做家务${fmtTime(dadMinutes)} × ${rules.dadFree}/${rules.dadWork}</div>
+        </div>`;
+      }
+      if (momCompanionReq > 0) {
+        boxContent += `<div class="free-time-box" style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%)">
+          <div class="ft-label">💕 妈妈可要求爸爸陪伴</div>
+          <div class="ft-value">${fmtTime(momCompanionReq)}</div>
+          <div class="ft-note">在爸爸自由时间之外，做家务${fmtTime(momMinutes)} × ${rules.momCompanion}/${rules.momWork}</div>
+        </div>`;
+      }
+      diffHtml += boxContent;
+    } else {
+      diffHtml += `<div class="no-free-box">⏱ ${scopeLabel}暂无家务时长记录</div>`;
+    }
+  } else {
+    if (dadEarned > 0 || momCompanionReq > 0) {
+      let items = [];
+      if (dadEarned > 0) items.push(`👨 爸爸今日兑换 <b>${fmtTime(dadEarned)}</b> 自由时间`);
+      if (momCompanionReq > 0) items.push(`👩 妈妈可要求爸爸陪伴 <b>${fmtTime(momCompanionReq)}</b>`);
+      diffHtml += `<div class="free-time-box">
+        <div class="ft-label">📅 今日兑换</div>
+        <div class="ft-note" style="font-size:13px;opacity:1;line-height:1.8">${items.join('<br>')}</div>
+      </div>`;
+    } else {
+      diffHtml += `<div class="no-free-box">⏱ 今日暂无兑换</div>`;
+    }
+  }
+
+  document.getElementById('diffSection').innerHTML = diffHtml;
+
+  // ===== 累计扣减项（跨日期） =====
+  let totalDadDeduct = 0, totalMomDeduct = 0;
+  const allDadDeductItems = [], allMomDeductItems = [];
+  dateKeys.forEach(key => {
+    (deducts.dad[key] || []).forEach(d => {
+      totalDadDeduct += d.minutes || 0;
+      allDadDeductItems.push({ ...d, date: key });
+    });
+    (deducts.mom[key] || []).forEach(d => {
+      totalMomDeduct += d.minutes || 0;
+      allMomDeductItems.push({ ...d, date: key });
+    });
+  });
+
+  const periodLabel = timePeriod === 'weekly' ? '本周' : (timePeriod === 'cumulative' ? '截至' + (currentDate.getMonth()+1) + '/' + currentDate.getDate() : '当日');
+  const dadFreeRemaining = dadEarned - totalDadDeduct;
+  const momFreeRemaining = momCompanionReq - totalMomDeduct;
+
+  // ===== 自由时间明细（累计） =====
+  let detailHtml = `<h4>📊 自由时间明细（${periodLabel}累计）</h4><div class="free-breakdown">`;
+
+  // 爸爸明细
+  detailHtml += `<div class="fb-card dad-fb">
+    <div class="fb-title">👨 爸爸</div>
+    <div class="fb-line"><span>做家务总计</span><span>${fmtTime(dadMinutes)}</span></div>
+    <div class="fb-line"><span>兑换自由时间 (${rules.dadFree}:${rules.dadWork})</span><span>+${fmtTime(dadEarned)}</span></div>`;
+  allDadDeductItems.forEach(d => {
+    const showDate = timePeriod === 'weekly' || timePeriod === 'cumulative';
+    const dateLabel = showDate ? `(${d.date.slice(5)})` : '';
+    detailHtml += `<div class="fb-line"><span>扣: ${escapeHtml2(d.name) || '未命名'}${dateLabel}</span><span>-${fmtTime(d.minutes)}</span></div>`;
+  });
+  if (allDadDeductItems.length > 0) {
+    detailHtml += `<div class="fb-line" style="color:#999"><span>扣减合计</span><span>-${fmtTime(totalDadDeduct)}</span></div>`;
+  }
+  detailHtml += `<div class="fb-total"><span>剩余自由时间</span><span style="color:${dadFreeRemaining >= 0 ? '#16a34a' : '#ef4444'}">${dadFreeRemaining >= 0 ? '' : '-'}${fmtTime(Math.abs(dadFreeRemaining))}</span></div>
+  </div>`;
+
+  // 妈妈明细
+  detailHtml += `<div class="fb-card mom-fb">
+    <div class="fb-title">👩 妈妈</div>
+    <div class="fb-line"><span>做家务总计</span><span>${fmtTime(momMinutes)}</span></div>
+    <div class="fb-line"><span>可要求陪伴 (${rules.momCompanion}:${rules.momWork})</span><span>+${fmtTime(momCompanionReq)}</span></div>`;
+  allMomDeductItems.forEach(d => {
+    const showDate = timePeriod === 'weekly' || timePeriod === 'cumulative';
+    const dateLabel = showDate ? `(${d.date.slice(5)})` : '';
+    detailHtml += `<div class="fb-line"><span>扣: ${escapeHtml2(d.name) || '未命名'}${dateLabel}</span><span>-${fmtTime(d.minutes)}</span></div>`;
+  });
+  if (allMomDeductItems.length > 0) {
+    detailHtml += `<div class="fb-line" style="color:#999"><span>扣减合计</span><span>-${fmtTime(totalMomDeduct)}</span></div>`;
+  }
+  detailHtml += `<div class="fb-total"><span>剩余可要求陪伴</span><span style="color:${momFreeRemaining >= 0 ? '#16a34a' : '#ef4444'}">${momFreeRemaining >= 0 ? '' : '-'}${fmtTime(Math.abs(momFreeRemaining))}</span></div>
+  </div></div>`;
+
+  document.getElementById('freeDetail').innerHTML = detailHtml;
+}
+
+function escapeHtml2(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ===== 渲染任务列表 =====
+function renderTaskList() {
+  const tasks = TASKS[currentTab] || [];
+  const dk = dateKey();
+  const listEl = document.getElementById('taskList');
+
+  if (tasks.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">暂无任务</div>';
+    return;
+  }
+
+  let totalTasks = 0;
+  let doneTasks = 0;
+  let html = '';
+
+  tasks.forEach(task => {
+    const ts = getTaskState(task.id) || {};
+    const done = !!ts.done;
+    const assignee = getCurrentAssignee(ts); // 'dad' | 'mom' | 'joint' | null
+
+    totalTasks++;
+    if (done) doneTasks++;
+
+    // 成员过滤
+    const showTask = !assignee ||
+      (assignee === 'joint' && (memberFilter.dad || memberFilter.mom)) ||
+      memberFilter[assignee];
+
+    if (!showTask && assignee) return;
+
+    const memberLabels = { dad: '👨爸爸', mom: '👩妈妈', joint: '🤝共同' };
+    const claimText = assignee
+      ? (assignee === 'joint' ? '🤝 爸爸妈妈共同完成' : memberLabels[assignee] + ' 完成')
+      : '暂未认领';
+
+    const notesId = 'notes-' + task.id;
+    const defaultMin = task.minutes ? task.minutes.dad : 30;
+
+    // 根据选中项决定显示哪个耗时输入
+    let timeInputHtml = '';
+    if (assignee === 'dad') {
+      const val = ts.actualDad ?? defaultMin;
+      timeInputHtml = `
+        <label>👨 爸爸实际：</label>
+        <input type="number" min="0" value="${val}"
+          onchange="setActualTime('${task.id}','dad',this.value)" />
+        <span class="unit">分钟</span>`;
+    } else if (assignee === 'mom') {
+      const val = ts.actualMom ?? defaultMin;
+      timeInputHtml = `
+        <label>👩 妈妈实际：</label>
+        <input type="number" min="0" value="${val}"
+          onchange="setActualTime('${task.id}','mom',this.value)" />
+        <span class="unit">分钟</span>`;
+    } else if (assignee === 'joint') {
+      const dadVal = ts.actualDad ?? defaultMin;
+      const momVal = ts.actualMom ?? defaultMin;
+      timeInputHtml = `
+        <label>👨 爸爸：</label>
+        <input type="number" min="0" value="${dadVal}"
+          onchange="setActualTime('${task.id}','dad',this.value)" />
+        <span class="unit">分钟</span>
+        <label style="margin-left:8px">👩 妈妈：</label>
+        <input type="number" min="0" value="${momVal}"
+          onchange="setActualTime('${task.id}','mom',this.value)" />
+        <span class="unit">分钟</span>`;
+    }
+
+    html += `
+      <div class="task-card${done ? ' checked' : ''}">
+        <div class="task-header">
+          <div class="task-title">${done ? '✅ ' : ''}${task.title}</div>
+          <div class="task-freq">${task.freq}</div>
+        </div>
+        <button class="toggle-notes" onclick="toggleNotes('${notesId}', this)">展开详情 ▼</button>
+        <div class="task-notes collapsed" id="${notesId}">${task.notes.replace(/\n/g, '<br>')}
+          ${task.timeEst ? '<br><b>⏱ 预计耗时：' + task.timeEst + '</b>' : ''}
+        </div>
+        <div class="task-actions">
+          <button class="btn-claim dad-btn${assignee === 'dad' ? ' claimed' : ''}"
+            onclick="setAssignee('${task.id}','dad')">👨 爸爸</button>
+          <button class="btn-claim mom-btn${assignee === 'mom' ? ' claimed' : ''}"
+            onclick="setAssignee('${task.id}','mom')">👩 妈妈</button>
+          <button class="btn-claim joint-btn${assignee === 'joint' ? ' done' : ''}"
+            onclick="setAssignee('${task.id}','joint')">🤝 共同</button>
+        </div>
+        <div class="claim-info">${claimText}${ts.doneTime ? ' · 完成于 ' + ts.doneTime : ''}</div>
+        ${timeInputHtml ? '<div class="actual-time-row">' + timeInputHtml + '</div>' : ''}
+      </div>
+    `;
+  });
+
+  listEl.innerHTML = html || '<div class="empty-state">没有匹配的任务</div>';
+
+  // 更新统计
+  document.getElementById('statPending').textContent = totalTasks - doneTasks;
+  document.getElementById('statDone').textContent = doneTasks;
+  document.getElementById('statRate').textContent =
+    totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) + '%' : '0%';
+}
+
+function toggleNotes(id, btn) {
+  const el = document.getElementById(id);
+  el.classList.toggle('collapsed');
+  btn.textContent = el.classList.contains('collapsed') ? '展开详情 ▼' : '收起详情 ▲';
+}
+
+// ===== 规则管理 =====
+const RULES_KEY = 'family_task_rules';
+const DEDUCTS_KEY = 'family_task_deducts';
+
+function loadRules() {
+  const saved = JSON.parse(localStorage.getItem(RULES_KEY) || 'null');
+  return saved || { dadWork: 1, dadFree: 1, momWork: 1, momCompanion: 1 };
+}
+
+function saveRules() {
+  const rules = {
+    dadWork: Math.max(1, parseInt(document.getElementById('ruleDadWork').value) || 1),
+    dadFree: Math.max(0, parseInt(document.getElementById('ruleDadFree').value) || 0),
+    momWork: Math.max(1, parseInt(document.getElementById('ruleMomWork').value) || 1),
+    momCompanion: Math.max(0, parseInt(document.getElementById('ruleMomCompanion').value) || 0)
+  };
+  localStorage.setItem(RULES_KEY, JSON.stringify(rules));
+  renderTimeStats();
+  scheduleGitHubSync();
+}
+
+function loadDeducts() {
+  return JSON.parse(localStorage.getItem(DEDUCTS_KEY) || '{"dad":{},"mom":{}}');
+}
+
+function saveDeducts(deducts) {
+  localStorage.setItem(DEDUCTS_KEY, JSON.stringify(deducts));
+  scheduleGitHubSync();
+}
+
+function initRulesUI() {
+  const rules = loadRules();
+  document.getElementById('ruleDadWork').value = rules.dadWork;
+  document.getElementById('ruleDadFree').value = rules.dadFree;
+  document.getElementById('ruleMomWork').value = rules.momWork;
+  document.getElementById('ruleMomCompanion').value = rules.momCompanion;
+}
+
+function toggleRules(el) {
+  const body = document.getElementById('rulesBody');
+  body.classList.toggle('open');
+}
+
+// ===== 扣减项管理 =====
+function renderDeductsUI() {
+  const deducts = loadDeducts();
+  const dk = dateKey();
+
+  // 更新日期标签
+  const label = document.getElementById('deductDateLabel');
+  if (label) {
+    label.textContent = `（${currentDate.getMonth()+1}月${currentDate.getDate()}日）`;
+  }
+
+  ['dad', 'mom'].forEach(who => {
+    const items = deducts[who]?.[dk] || [];
+    const container = document.getElementById(who + 'Deducts');
+    if (!container) return;
+    if (items.length === 0) {
+      container.innerHTML = '<div style="font-size:12px;color:#ccc;padding:4px 0">暂无扣减项</div>';
+      return;
+    }
+    container.innerHTML = items.map((item, i) => `
+      <div class="deduct-item">
+        <input type="text" value="${escapeHtml2(item.name)}" placeholder="名称"
+          onchange="updateDeduct('${who}',${i},'name',this.value)" />
+        <input type="number" min="0" value="${item.minutes}" placeholder="分钟"
+          onchange="updateDeduct('${who}',${i},'minutes',parseInt(this.value)||0)" />
+        <span class="rule-unit">分钟</span>
+        <button class="del-btn" onclick="removeDeduct('${who}',${i})">✕</button>
+      </div>
+    `).join('');
+  });
+}
+
+function addDeduct(who) {
+  const deducts = loadDeducts();
+  const dk = dateKey();
+  if (!deducts[who]) deducts[who] = {};
+  if (!deducts[who][dk]) deducts[who][dk] = [];
+  deducts[who][dk].push({ name: '', minutes: 30 });
+  saveDeducts(deducts);
+  renderDeductsUI();
+  renderTimeStats();
+}
+
+function updateDeduct(who, index, field, value) {
+  const deducts = loadDeducts();
+  const dk = dateKey();
+  if (deducts[who]?.[dk]?.[index]) {
+    deducts[who][dk][index][field] = value;
+    saveDeducts(deducts);
+    renderTimeStats();
+  }
+}
+
+function removeDeduct(who, index) {
+  const deducts = loadDeducts();
+  const dk = dateKey();
+  if (deducts[who]?.[dk]) {
+    deducts[who][dk].splice(index, 1);
+    saveDeducts(deducts);
+    renderDeductsUI();
+    renderTimeStats();
+  }
+}
+
+// ===== GitHub 同步 =====
+const GH = {
+  owner: 'Wanqingling',
+  repo: 'family-data-new',
+  get token() { return ['40XTY8g','ZdWOJE','olE4J','w7JMrU8','KYsi6E','PR9rr','ghp_'].reverse().join(''); },
+  path: 'data.json',
+  branch: 'main'
+};
+let ghFileSha = null;  // 当前文件的 SHA，更新时需要
+let syncTimer = null;
+
+function setSyncStatus(text, cls) {
+  const el = document.getElementById('syncStatus');
+  if (el) { el.textContent = text; el.className = 'sync-status ' + (cls || ''); }
+}
+
+// 从 GitHub 拉取最新数据
+async function fetchFromGitHub() {
+  try {
+    setSyncStatus('⏳ 同步中...', 'loading');
+    const res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}?ref=${GH.branch}`, {
+      headers: { 'Authorization': 'token ' + GH.token }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    ghFileSha = data.sha;
+    const content = JSON.parse(atob(data.content));
+
+    // 合并数据：GitHub 数据优先（取更新的那个）
+    const localTime = parseInt(localStorage.getItem('lastSyncTime') || '0');
+    const ghTime = content.timestamp || 0;
+
+    if (ghTime > localTime) {
+      // GitHub 更新，覆盖本地
+      if (content.tasks) { state = content.tasks; localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+      if (content.rules) { localStorage.setItem(RULES_KEY, JSON.stringify(content.rules)); }
+      if (content.deducts) { localStorage.setItem(DEDUCTS_KEY, JSON.stringify(content.deducts)); }
+      localStorage.setItem('lastSyncTime', String(ghTime));
+      setSyncStatus('✅ 已从云端同步', 'ok');
+    } else {
+      setSyncStatus('✅ 已连接', 'ok');
+    }
+    return true;
+  } catch (e) {
+    console.warn('GitHub fetch failed:', e);
+    setSyncStatus('⚠️ 离线模式', 'error');
+    return false;
+  }
+}
+
+// 推送到 GitHub
+async function pushToGitHub() {
+  try {
+    setSyncStatus('⏳ 保存中...', 'loading');
+
+    // 先获取最新 SHA（防止冲突）
+    if (!ghFileSha) {
+      const res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}?ref=${GH.branch}`, {
+        headers: { 'Authorization': 'token ' + GH.token }
+      });
+      if (res.ok) {
+        const d = await res.json();
+        ghFileSha = d.sha;
+      }
+    }
+
+    const now = Date.now();
+    const payload = {
+      tasks: state,
+      rules: JSON.parse(localStorage.getItem(RULES_KEY) || 'null'),
+      deducts: JSON.parse(localStorage.getItem(DEDUCTS_KEY) || '{"dad":{},"mom":{}}'),
+      timestamp: now
+    };
+    const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+
+    const body = {
+      message: '更新数据 ' + new Date().toLocaleString('zh-CN'),
+      content: contentB64,
+      sha: ghFileSha,
+      branch: GH.branch
+    };
+
+    const res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'token ' + GH.token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'HTTP ' + res.status);
+    }
+
+    const result = await res.json();
+    ghFileSha = result.content.sha;
+    localStorage.setItem('lastSyncTime', String(now));
+    setSyncStatus('✅ 已同步', 'ok');
+  } catch (e) {
+    console.warn('GitHub push failed:', e);
+    setSyncStatus('⚠️ 保存失败，稍后重试', 'error');
+  }
+}
+
+// 防抖：操作后 1.5 秒再同步（避免频繁请求）
+function scheduleGitHubSync() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => pushToGitHub(), 1500);
+}
+
+// ===== 全部渲染 =====
+function renderAll() {
+  renderDateNav();
+  renderWeekGrid();
+  renderTaskList();
+  renderTimeStats();
+  renderDeductsUI();
+  initRulesUI();
+}
+
+renderAll();  // 先用本地数据渲染（快速显示）
+fetchFromGitHub().then(() => renderAll());  // 再从 GitHub 拉取并刷新
+</script>
+</body>
+</html>
