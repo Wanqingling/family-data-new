@@ -500,6 +500,37 @@
   }
   .auth-box button:active { background: #3a5ce5; }
   .auth-error { color: #e53e3e; font-size: 13px; margin-top: 12px; display: none; }
+
+  /* 周末确认面板 */
+  .weekend-panel {
+    background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px;
+    padding: 20px; margin-bottom: 16px; border: 2px solid #f59e0b;
+  }
+  .weekend-panel h3 { margin: 0 0 4px; font-size: 16px; }
+  .weekend-panel .wk-sub { font-size: 12px; color: #92400e; margin-bottom: 16px; }
+  .wk-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    background: #fff; padding: 12px; border-radius: 10px;
+  }
+  .wk-row .wk-label { font-weight: 600; font-size: 14px; min-width: 50px; }
+  .wk-row select {
+    flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;
+    background: #fff;
+  }
+  .wk-row .wk-btn {
+    padding: 8px 16px; border: none; border-radius: 8px; font-size: 13px;
+    font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .wk-btn.confirm { background: #16a34a; color: #fff; }
+  .wk-btn.cancel { background: #ef4444; color: #fff; margin-left: 4px; }
+  .wk-btn.confirmed { background: #e5e7eb; color: #6b7280; }
+  .wk-locked {
+    background: #dcfce7 !important; border: 1px solid #86efac;
+  }
+  .wk-locked .wk-label { color: #166534; }
+  .wk-status { font-size: 12px; margin-top: 2px; }
+  .wk-status.ok { color: #16a34a; }
+  .wk-status.warn { color: #ef4444; }
 </style>
 </head>
 <body>
@@ -1159,40 +1190,26 @@ function renderTimeStats() {
 
   const periodLabel = timePeriod === 'weekly' ? '本周' : (timePeriod === 'cumulative' ? '截至' + (currentDate.getMonth()+1) + '/' + currentDate.getDate() : '当日');
 
-  // ===== 周末陪伴检查 =====
-  // 统计本周六日的周末任务完成时长
-  let weekendDadMin = 0, weekendMomMin = 0;
-  let weekendDays = 0; // 本周有几个周末天（周六/周日）已过
-  const today = new Date(); today.setHours(0,0,0,0);
+  // ===== 周末陪伴惩罚（基于确认系统） =====
+  const weekendPenalties = getWeekendPenalties(dateKeys);
+  const dadWeekendPenaltyItems = weekendPenalties.dad;
+  const momWeekendPenaltyItems = weekendPenalties.mom;
+  const dadWeekendPenalty = dadWeekendPenaltyItems.reduce((s, p) => s + p.minutes, 0);
+  const momWeekendPenalty = momWeekendPenaltyItems.reduce((s, p) => s + p.minutes, 0);
 
+  // 统计周末确认情况（显示用）
+  const wkConfirm = loadWeekendConfirm();
+  let weekendDadConfirmed = 0, weekendMomConfirmed = 0;
   dateKeys.forEach(dk => {
     const d = new Date(dk + 'T00:00:00');
-    const dayOfWeek = d.getDay(); // 0=周日, 6=周六
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) return;
-    // 只统计已过去的周末天
-    if (d > today) return;
-    weekendDays++;
-
-    const dayState = state[dk] || {};
-    Object.keys(dayState).forEach(taskId => {
-      if (!taskId.startsWith('w')) return; // 只看周末任务
-      const ts = dayState[taskId];
-      if (!ts.done) return;
-      const task = findTask(taskId);
-      if (!task) return;
-      const dadMin = ts.actualDad ?? (task.minutes ? task.minutes.dad : 0);
-      const momMin = ts.actualMom ?? (task.minutes ? task.minutes.mom : 0);
-      if (ts.joint || (ts.completedBy || []).includes('dad')) weekendDadMin += dadMin;
-      if (ts.joint || (ts.completedBy || []).includes('mom')) weekendMomMin += momMin;
-    });
+    if (d.getDay() !== 6) return;
+    const sun = new Date(d); sun.setDate(d.getDate() + 1);
+    const deadline = new Date(sun); deadline.setHours(17, 0, 0, 0);
+    if (new Date() <= deadline) return;
+    if (wkConfirm[dk]?.dad?.confirmed) weekendDadConfirmed++;
+    if (wkConfirm[dk]?.mom?.confirmed) weekendMomConfirmed++;
   });
-
-  // 每周末至少 3 小时 = 180 分钟，不足则扣除差额
-  // 按周数计算（每周一次检查）
-  const weekCount = timePeriod === 'daily' ? 1 : Math.max(1, Math.ceil(weekendDays / 2));
-  const requiredMin = weekCount * WEEKEND_MIN_MINUTES;
-  const dadWeekendPenalty = Math.max(0, requiredMin - weekendDadMin);
-  const momWeekendPenalty = Math.max(0, requiredMin - weekendMomMin);
+  const weekendChecked = weekendDadConfirmed + weekendMomConfirmed;
 
   // 把周末惩罚加到扣减项里
   totalDadDeduct += dadWeekendPenalty;
@@ -1209,7 +1226,7 @@ function renderTimeStats() {
     <div class="fb-title">👨 爸爸</div>
     <div class="fb-line"><span>做家务总计</span><span>${fmtTime(dadMinutes)}</span></div>
     <div class="fb-line"><span>兑换自由时间 (${rules.dadFree}:${rules.dadWork})</span><span>+${fmtTime(dadEarned)}</span></div>
-    <div class="fb-line" style="color:${weekendDadMin >= requiredMin ? '#16a34a' : '#ef4444'}"><span>🏖 周末陪伴 ${fmtTime(weekendDadMin)}/${fmtTime(requiredMin)}</span><span>${weekendDadMin >= requiredMin ? '✅' : '❌'}</span></div>`;
+    <div class="fb-line" style="color:${weekendDadConfirmed > 0 && dadWeekendPenalty === 0 ? '#16a34a' : '#ef4444'}"><span>🏖 周末陪伴确认 ${weekendDadConfirmed} 次</span><span>${dadWeekendPenalty === 0 ? '✅' : '❌'}</span></div>`;
   allDadDeductItems.forEach(d => {
     const showDate = timePeriod === 'weekly' || timePeriod === 'cumulative';
     const dateLabel = showDate ? `(${d.date.slice(5)})` : '';
@@ -1219,7 +1236,9 @@ function renderTimeStats() {
     detailHtml += `<div class="fb-line" style="color:#999"><span>扣减合计</span><span>-${fmtTime(totalDadDeduct - dadWeekendPenalty)}</span></div>`;
   }
   if (dadWeekendPenalty > 0) {
-    detailHtml += `<div class="fb-line" style="color:#ef4444"><span>❌ 周末陪伴不足扣除</span><span>-${fmtTime(dadWeekendPenalty)}</span></div>`;
+    dadWeekendPenaltyItems.forEach(p => {
+      detailHtml += `<div class="fb-line" style="color:#ef4444"><span>❌ ${p.name}</span><span>-${fmtTime(p.minutes)}</span></div>`;
+    });
   }
   detailHtml += `<div class="fb-total"><span>剩余自由时间</span><span style="color:${dadFreeRemaining >= 0 ? '#16a34a' : '#ef4444'}">${dadFreeRemaining >= 0 ? '' : '-'}${fmtTime(Math.abs(dadFreeRemaining))}</span></div>
   </div>`;
@@ -1229,7 +1248,7 @@ function renderTimeStats() {
     <div class="fb-title">👩 妈妈</div>
     <div class="fb-line"><span>做家务总计</span><span>${fmtTime(momMinutes)}</span></div>
     <div class="fb-line"><span>可要求陪伴 (${rules.momCompanion}:${rules.momWork})</span><span>+${fmtTime(momCompanionReq)}</span></div>
-    <div class="fb-line" style="color:${weekendMomMin >= requiredMin ? '#16a34a' : '#ef4444'}"><span>🏖 周末陪伴 ${fmtTime(weekendMomMin)}/${fmtTime(requiredMin)}</span><span>${weekendMomMin >= requiredMin ? '✅' : '❌'}</span></div>`;
+    <div class="fb-line" style="color:${weekendMomConfirmed > 0 && momWeekendPenalty === 0 ? '#16a34a' : '#ef4444'}"><span>🏖 周末陪伴确认 ${weekendMomConfirmed} 次</span><span>${momWeekendPenalty === 0 ? '✅' : '❌'}</span></div>`;
   allMomDeductItems.forEach(d => {
     const showDate = timePeriod === 'weekly' || timePeriod === 'cumulative';
     const dateLabel = showDate ? `(${d.date.slice(5)})` : '';
@@ -1239,7 +1258,9 @@ function renderTimeStats() {
     detailHtml += `<div class="fb-line" style="color:#999"><span>扣减合计</span><span>-${fmtTime(totalMomDeduct - momWeekendPenalty)}</span></div>`;
   }
   if (momWeekendPenalty > 0) {
-    detailHtml += `<div class="fb-line" style="color:#ef4444"><span>❌ 周末陪伴不足扣除</span><span>-${fmtTime(momWeekendPenalty)}</span></div>`;
+    momWeekendPenaltyItems.forEach(p => {
+      detailHtml += `<div class="fb-line" style="color:#ef4444"><span>❌ ${p.name}</span><span>-${fmtTime(p.minutes)}</span></div>`;
+    });
   }
   detailHtml += `<div class="fb-total"><span>剩余可要求陪伴</span><span style="color:${momFreeRemaining >= 0 ? '#16a34a' : '#ef4444'}">${momFreeRemaining >= 0 ? '' : '-'}${fmtTime(Math.abs(momFreeRemaining))}</span></div>
   </div></div>`;
@@ -1253,14 +1274,156 @@ function escapeHtml2(str) {
   return div.innerHTML;
 }
 
+// ===== 周末陪伴确认系统 =====
+const WEEKEND_KEY = 'family_weekend_confirm';
+const WEEKEND_ACTIVITIES = [
+  '一起运动', '一起看电影', '一起逛街', '一起玩', '一起游泳', '一起爬山', '其他活动'
+];
+const WEEKEND_PENALTY_MIN = 120; // 未参与扣 2 小时
+
+function getWeekendKey() {
+  // 以本周六为周末标识（周六 + 周日属于同一个周末）
+  const d = new Date(currentDate);
+  // 找到本周六
+  const dayOfWeek = d.getDay(); // 0=周日, 6=周六
+  if (dayOfWeek === 6) return dateKey(d);
+  if (dayOfWeek === 0) {
+    d.setDate(d.getDate() - 1); // 周日→前一个周六
+    return dateKey(d);
+  }
+  // 周一到周五→找下一个周六（还没到周末，但显示当前周末）
+  const sat = new Date(d);
+  sat.setDate(d.getDate() + (6 - dayOfWeek));
+  return dateKey(sat);
+}
+
+function loadWeekendConfirm() {
+  return JSON.parse(localStorage.getItem(WEEKEND_KEY) || '{}');
+}
+
+function saveWeekendConfirm(data) {
+  localStorage.setItem(WEEKEND_KEY, JSON.stringify(data));
+  scheduleGitHubSync();
+}
+
+function confirmWeekend(who) {
+  const sel = document.getElementById('wkSelect_' + who);
+  const activity = sel.value;
+  if (!activity) { alert('请先选择一项活动'); return; }
+  const data = loadWeekendConfirm();
+  const wk = getWeekendKey();
+  if (!data[wk]) data[wk] = {};
+  data[wk][who] = { activity, confirmed: true, time: new Date().toLocaleString('zh-CN') };
+  saveWeekendConfirm(data);
+  renderTaskList();
+  renderTimeStats();
+}
+
+function cancelWeekendConfirm(who) {
+  if (!confirm('确定取消确认吗？')) return;
+  const data = loadWeekendConfirm();
+  const wk = getWeekendKey();
+  if (data[wk]) { delete data[wk][who]; }
+  saveWeekendConfirm(data);
+  renderTaskList();
+  renderTimeStats();
+}
+
+function renderWeekendPanel() {
+  const wk = getWeekendKey();
+  const data = loadWeekendConfirm();
+  const wkData = data[wk] || {};
+
+  // 解析周六周日日期
+  const sat = new Date(wk + 'T00:00:00');
+  const sun = new Date(sat); sun.setDate(sat.getDate() + 1);
+  const weekLabel = `${sat.getMonth()+1}/${sat.getDate()} ~ ${sun.getMonth()+1}/${sun.getDate()}`;
+
+  // 检查是否已过了周日 17:00
+  const now = new Date();
+  const deadline = new Date(sun); deadline.setHours(17, 0, 0, 0);
+  const pastDeadline = now > deadline;
+
+  let html = `<div class="weekend-panel">
+    <h3>🏖 周末家庭陪伴确认</h3>
+    <div class="wk-sub">${weekLabel} · 每周末至少参与 1 项活动 · 周日17:00前需确认${pastDeadline ? ' · <b style="color:#ef4444">已过截止时间</b>' : ''}</div>`;
+
+  ['dad', 'mom'].forEach(who => {
+    const label = who === 'dad' ? '👨 爸爸' : '👩 妈妈';
+    const info = wkData[who];
+    const isConfirmed = info && info.confirmed;
+
+    if (isConfirmed) {
+      html += `<div class="wk-row wk-locked">
+        <span class="wk-label">${label}</span>
+        <span style="flex:1;font-size:14px">✅ ${info.activity}</span>
+        <span class="wk-status ok">${info.time}</span>
+        <button class="wk-btn cancel" onclick="cancelWeekendConfirm('${who}')">取消</button>
+      </div>`;
+    } else {
+      const options = WEEKEND_ACTIVITIES.map(a => `<option value="${a}">${a}</option>`).join('');
+      html += `<div class="wk-row">
+        <span class="wk-label">${label}</span>
+        <select id="wkSelect_${who}"><option value="">-- 选择活动 --</option>${options}</select>
+        <button class="wk-btn confirm" onclick="confirmWeekend('${who}')">确认</button>
+      </div>`;
+      if (pastDeadline) {
+        html += `<div class="wk-status warn" style="margin-left:58px;margin-bottom:8px">⚠️ 未确认，将扣减 ${WEEKEND_PENALTY_MIN/60} 小时自由时间</div>`;
+      }
+    }
+  });
+
+  html += '</div>';
+  return html;
+}
+
+// 获取周末未确认惩罚列表（用于时间统计）
+function getWeekendPenalties(dateKeys) {
+  const data = loadWeekendConfirm();
+  const now = new Date();
+  const penalties = { dad: [], mom: [] };
+
+  // 遍历所有周末的周六 key
+  dateKeys.forEach(dk => {
+    const d = new Date(dk + 'T00:00:00');
+    if (d.getDay() !== 6) return; // 只看周六
+    const sun = new Date(d); sun.setDate(d.getDate() + 1);
+    const deadline = new Date(sun); deadline.setHours(17, 0, 0, 0);
+
+    // 只检查已过去的周末
+    if (now <= deadline) return;
+
+    const wkData = data[dk] || {};
+    ['dad', 'mom'].forEach(who => {
+      if (!wkData[who] || !wkData[who].confirmed) {
+        const dateLabel = `${sun.getMonth()+1}/${sun.getDate()}`;
+        penalties[who].push({
+          date: dk,
+          dateLabel,
+          minutes: WEEKEND_PENALTY_MIN,
+          name: `周末陪伴未参与(${dateLabel})`
+        });
+      }
+    });
+  });
+
+  return penalties;
+}
+
 // ===== 渲染任务列表 =====
 function renderTaskList() {
   const tasks = TASKS[currentTab] || [];
   const dk = dateKey();
   const listEl = document.getElementById('taskList');
 
+  // 周末标签页：先显示确认面板
+  let prefixHtml = '';
+  if (currentTab === 'weekend') {
+    prefixHtml = renderWeekendPanel();
+  }
+
   if (tasks.length === 0) {
-    listEl.innerHTML = '<div class="empty-state">暂无任务</div>';
+    listEl.innerHTML = prefixHtml + '<div class="empty-state">暂无任务</div>';
     return;
   }
 
@@ -1345,7 +1508,7 @@ function renderTaskList() {
     `;
   });
 
-  listEl.innerHTML = html || '<div class="empty-state">没有匹配的任务</div>';
+  listEl.innerHTML = prefixHtml + (html || '<div class="empty-state">没有匹配的任务</div>');
 
   // 更新统计
   document.getElementById('statPending').textContent = totalTasks - doneTasks;
@@ -1514,6 +1677,7 @@ async function fetchFromGitHub() {
       if (content.tasks) { state = content.tasks; localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
       if (content.rules) { localStorage.setItem(RULES_KEY, JSON.stringify(content.rules)); }
       if (content.deducts) { localStorage.setItem(DEDUCTS_KEY, JSON.stringify(content.deducts)); }
+      if (content.weekend) { localStorage.setItem(WEEKEND_KEY, JSON.stringify(content.weekend)); }
       localStorage.setItem('lastSyncTime', String(ghTime));
       setSyncStatus('✅ 已从云端同步', 'ok');
     } else {
@@ -1567,6 +1731,7 @@ async function pushToGitHub() {
       tasks: state,
       rules: JSON.parse(localStorage.getItem(RULES_KEY) || 'null'),
       deducts: JSON.parse(localStorage.getItem(DEDUCTS_KEY) || '{"dad":{},"mom":{}}'),
+      weekend: JSON.parse(localStorage.getItem(WEEKEND_KEY) || '{}'),
       timestamp: now
     };
     const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
