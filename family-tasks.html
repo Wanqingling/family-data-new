@@ -571,9 +571,13 @@
         <span class="rule-unit">小时</span>
       </div>
       <div class="rule-divider"></div>
-      <div style="font-size:12px;color:#888;line-height:1.6">
-        💡 爸爸的家务时长按比例兑换为自由时间；<br>
-        妈妈的家务时长按比例可要求爸爸在自由时间之外陪伴。
+      <div style="font-size:12px;color:#888;line-height:1.8">
+        💡 <b>家务兑换规则：</b><br>
+        · 爸爸的家务时长按比例兑换为自由时间；<br>
+        · 妈妈的家务时长按比例可要求爸爸在自由时间之外陪伴。<br><br>
+        🏖 <b>家庭陪伴与违约规则：</b><br>
+        · <b>周末底线：</b>每周末，父母双方需保证一家三口的"高质量陪伴时间"底线为 <b>2 小时</b>（如逛公园、看电影、亲子游戏等）。<br>
+        · <b>双倍扣罚机制：</b>若因非工作或非不可抗力因素，导致周末陪伴时间未达到 2 小时，欠下的时间将从对应角色的自由时间剩余账户中扣除<b>双倍时间</b>（即欠 1 小时陪伴，需扣除 2 小时自由时间）。未确认参与者，直接扣除 <b>4 小时</b>自由时间。
       </div>
     </div>
   </div>
@@ -1230,7 +1234,7 @@ const WEEKEND_KEY = 'family_weekend_confirm';
 const WEEKEND_ACTIVITIES = [
   '一起运动', '一起看电影', '一起逛街', '一起玩', '一起游泳', '一起爬山', '其他活动'
 ];
-const WEEKEND_PENALTY_MIN = 120; // 未参与扣 2 小时
+const WEEKEND_PENALTY_MIN = 240; // 未参与扣 4 小时（欠2小时×双倍）
 
 function getWeekendKey() {
   // 以本周六为周末标识（周六 + 周日属于同一个周末）
