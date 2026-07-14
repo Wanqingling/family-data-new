@@ -573,6 +573,7 @@
     <div class="tab active" onclick="switchTab('daily', this)">📋 每日必办</div>
     <div class="tab" onclick="switchTab('weekly', this)">📅 每周任务</div>
     <div class="tab" onclick="switchTab('shared', this)">🤝 共同陪伴</div>
+    <div class="tab" onclick="switchTab('weekend', this)">🏖 周末陪伴</div>
   </div>
 
   <!-- 统计 -->
@@ -762,8 +763,61 @@ const TASKS = {
       timeEst: '视情况而定',
       minutes: { dad: 60, mom: 60 }
     }
+  ],
+  weekend: [
+    {
+      id: 'w1',
+      title: '一起运动（跑步、打球、骑车等）',
+      freq: '每周末至少1次',
+      notes: '全家一起参与运动，增强体质，增进感情。',
+      timeEst: '1小时',
+      minutes: { dad: 60, mom: 60 }
+    },
+    {
+      id: 'w2',
+      title: '一起看电影/纪录片',
+      freq: '每周末可选',
+      notes: '选择适合全家观看的影片，观影后可简单交流感受。',
+      timeEst: '1.5小时',
+      minutes: { dad: 90, mom: 90 }
+    },
+    {
+      id: 'w3',
+      title: '一起逛街/逛公园',
+      freq: '每周末可选',
+      notes: '陪伴孩子外出，走走看看，放松身心。',
+      timeEst: '1-2小时',
+      minutes: { dad: 90, mom: 90 }
+    },
+    {
+      id: 'w4',
+      title: '一起玩（桌游、手工、积木等）',
+      freq: '每周末可选',
+      notes: '放下手机，全身心投入和孩子的互动游戏。',
+      timeEst: '1小时',
+      minutes: { dad: 60, mom: 60 }
+    },
+    {
+      id: 'w5',
+      title: '一起游泳',
+      freq: '每周末可选',
+      notes: '注意安全，全程看护好孩子。',
+      timeEst: '1.5小时',
+      minutes: { dad: 90, mom: 90 }
+    },
+    {
+      id: 'w6',
+      title: '一起爬山/户外徒步',
+      freq: '每周末可选',
+      notes: '选择适合孩子的路线，享受大自然。',
+      timeEst: '2-3小时',
+      minutes: { dad: 150, mom: 150 }
+    }
   ]
 };
+
+// 周末陪伴最低要求：每周 3 小时 = 180 分钟
+const WEEKEND_MIN_MINUTES = 180;
 
 // ===== 状态管理 =====
 const STORAGE_KEY = 'family_tasks_v2';
@@ -840,7 +894,7 @@ function renderWeekGrid() {
     const isFuture = dk > todayKey;
     // 统计当天完成数
     const dayState = state[dk] || {};
-    const allTasks = [...TASKS.daily, ...TASKS.weekly, ...TASKS.shared];
+    const allTasks = [...TASKS.daily, ...TASKS.weekly, ...TASKS.shared, ...TASKS.weekend];
     const doneCount = allTasks.filter(t => dayState[t.id]?.done).length;
 
     html += `<div class="week-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}${isFuture ? ' future' : ''}"
@@ -1104,6 +1158,46 @@ function renderTimeStats() {
   });
 
   const periodLabel = timePeriod === 'weekly' ? '本周' : (timePeriod === 'cumulative' ? '截至' + (currentDate.getMonth()+1) + '/' + currentDate.getDate() : '当日');
+
+  // ===== 周末陪伴检查 =====
+  // 统计本周六日的周末任务完成时长
+  let weekendDadMin = 0, weekendMomMin = 0;
+  let weekendDays = 0; // 本周有几个周末天（周六/周日）已过
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  dateKeys.forEach(dk => {
+    const d = new Date(dk + 'T00:00:00');
+    const dayOfWeek = d.getDay(); // 0=周日, 6=周六
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) return;
+    // 只统计已过去的周末天
+    if (d > today) return;
+    weekendDays++;
+
+    const dayState = state[dk] || {};
+    Object.keys(dayState).forEach(taskId => {
+      if (!taskId.startsWith('w')) return; // 只看周末任务
+      const ts = dayState[taskId];
+      if (!ts.done) return;
+      const task = findTask(taskId);
+      if (!task) return;
+      const dadMin = ts.actualDad ?? (task.minutes ? task.minutes.dad : 0);
+      const momMin = ts.actualMom ?? (task.minutes ? task.minutes.mom : 0);
+      if (ts.joint || (ts.completedBy || []).includes('dad')) weekendDadMin += dadMin;
+      if (ts.joint || (ts.completedBy || []).includes('mom')) weekendMomMin += momMin;
+    });
+  });
+
+  // 每周末至少 3 小时 = 180 分钟，不足则扣除差额
+  // 按周数计算（每周一次检查）
+  const weekCount = timePeriod === 'daily' ? 1 : Math.max(1, Math.ceil(weekendDays / 2));
+  const requiredMin = weekCount * WEEKEND_MIN_MINUTES;
+  const dadWeekendPenalty = Math.max(0, requiredMin - weekendDadMin);
+  const momWeekendPenalty = Math.max(0, requiredMin - weekendMomMin);
+
+  // 把周末惩罚加到扣减项里
+  totalDadDeduct += dadWeekendPenalty;
+  totalMomDeduct += momWeekendPenalty;
+
   const dadFreeRemaining = dadEarned - totalDadDeduct;
   const momFreeRemaining = momCompanionReq - totalMomDeduct;
 
@@ -1114,14 +1208,18 @@ function renderTimeStats() {
   detailHtml += `<div class="fb-card dad-fb">
     <div class="fb-title">👨 爸爸</div>
     <div class="fb-line"><span>做家务总计</span><span>${fmtTime(dadMinutes)}</span></div>
-    <div class="fb-line"><span>兑换自由时间 (${rules.dadFree}:${rules.dadWork})</span><span>+${fmtTime(dadEarned)}</span></div>`;
+    <div class="fb-line"><span>兑换自由时间 (${rules.dadFree}:${rules.dadWork})</span><span>+${fmtTime(dadEarned)}</span></div>
+    <div class="fb-line" style="color:${weekendDadMin >= requiredMin ? '#16a34a' : '#ef4444'}"><span>🏖 周末陪伴 ${fmtTime(weekendDadMin)}/${fmtTime(requiredMin)}</span><span>${weekendDadMin >= requiredMin ? '✅' : '❌'}</span></div>`;
   allDadDeductItems.forEach(d => {
     const showDate = timePeriod === 'weekly' || timePeriod === 'cumulative';
     const dateLabel = showDate ? `(${d.date.slice(5)})` : '';
     detailHtml += `<div class="fb-line"><span>扣: ${escapeHtml2(d.name) || '未命名'}${dateLabel}</span><span>-${fmtTime(d.minutes)}</span></div>`;
   });
   if (allDadDeductItems.length > 0) {
-    detailHtml += `<div class="fb-line" style="color:#999"><span>扣减合计</span><span>-${fmtTime(totalDadDeduct)}</span></div>`;
+    detailHtml += `<div class="fb-line" style="color:#999"><span>扣减合计</span><span>-${fmtTime(totalDadDeduct - dadWeekendPenalty)}</span></div>`;
+  }
+  if (dadWeekendPenalty > 0) {
+    detailHtml += `<div class="fb-line" style="color:#ef4444"><span>❌ 周末陪伴不足扣除</span><span>-${fmtTime(dadWeekendPenalty)}</span></div>`;
   }
   detailHtml += `<div class="fb-total"><span>剩余自由时间</span><span style="color:${dadFreeRemaining >= 0 ? '#16a34a' : '#ef4444'}">${dadFreeRemaining >= 0 ? '' : '-'}${fmtTime(Math.abs(dadFreeRemaining))}</span></div>
   </div>`;
@@ -1130,14 +1228,18 @@ function renderTimeStats() {
   detailHtml += `<div class="fb-card mom-fb">
     <div class="fb-title">👩 妈妈</div>
     <div class="fb-line"><span>做家务总计</span><span>${fmtTime(momMinutes)}</span></div>
-    <div class="fb-line"><span>可要求陪伴 (${rules.momCompanion}:${rules.momWork})</span><span>+${fmtTime(momCompanionReq)}</span></div>`;
+    <div class="fb-line"><span>可要求陪伴 (${rules.momCompanion}:${rules.momWork})</span><span>+${fmtTime(momCompanionReq)}</span></div>
+    <div class="fb-line" style="color:${weekendMomMin >= requiredMin ? '#16a34a' : '#ef4444'}"><span>🏖 周末陪伴 ${fmtTime(weekendMomMin)}/${fmtTime(requiredMin)}</span><span>${weekendMomMin >= requiredMin ? '✅' : '❌'}</span></div>`;
   allMomDeductItems.forEach(d => {
     const showDate = timePeriod === 'weekly' || timePeriod === 'cumulative';
     const dateLabel = showDate ? `(${d.date.slice(5)})` : '';
     detailHtml += `<div class="fb-line"><span>扣: ${escapeHtml2(d.name) || '未命名'}${dateLabel}</span><span>-${fmtTime(d.minutes)}</span></div>`;
   });
   if (allMomDeductItems.length > 0) {
-    detailHtml += `<div class="fb-line" style="color:#999"><span>扣减合计</span><span>-${fmtTime(totalMomDeduct)}</span></div>`;
+    detailHtml += `<div class="fb-line" style="color:#999"><span>扣减合计</span><span>-${fmtTime(totalMomDeduct - momWeekendPenalty)}</span></div>`;
+  }
+  if (momWeekendPenalty > 0) {
+    detailHtml += `<div class="fb-line" style="color:#ef4444"><span>❌ 周末陪伴不足扣除</span><span>-${fmtTime(momWeekendPenalty)}</span></div>`;
   }
   detailHtml += `<div class="fb-total"><span>剩余可要求陪伴</span><span style="color:${momFreeRemaining >= 0 ? '#16a34a' : '#ef4444'}">${momFreeRemaining >= 0 ? '' : '-'}${fmtTime(Math.abs(momFreeRemaining))}</span></div>
   </div></div>`;
