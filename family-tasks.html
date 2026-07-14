@@ -475,10 +475,49 @@
     .week-day { padding: 6px 2px; font-size: 11px; }
     .task-card { padding: 12px; }
   }
+
+  /* 验证页面 */
+  .auth-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    display: flex; align-items: center; justify-content: center; z-index: 9999;
+  }
+  .auth-box {
+    background: #fff; border-radius: 20px; padding: 40px 32px; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 340px; width: 90%;
+  }
+  .auth-box h2 { margin: 0 0 8px; font-size: 22px; }
+  .auth-box p { color: #888; font-size: 13px; margin: 0 0 24px; }
+  .auth-box input {
+    width: 100%; padding: 14px; font-size: 20px; text-align: center;
+    border: 2px solid #ddd; border-radius: 12px; outline: none;
+    letter-spacing: 8px; box-sizing: border-box;
+  }
+  .auth-box input:focus { border-color: #4a6cf7; }
+  .auth-box button {
+    width: 100%; padding: 14px; margin-top: 16px; font-size: 16px; font-weight: 600;
+    background: #4a6cf7; color: #fff; border: none; border-radius: 12px; cursor: pointer;
+  }
+  .auth-box button:active { background: #3a5ce5; }
+  .auth-error { color: #e53e3e; font-size: 13px; margin-top: 12px; display: none; }
 </style>
 </head>
 <body>
-<div class="container">
+
+<!-- 验证页面 -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-box">
+    <h2>🔒 家庭专属</h2>
+    <p>请输入身份证尾号验证身份</p>
+    <input type="password" id="authCode" maxlength="4" inputmode="numeric" pattern="[0-9]*"
+      placeholder="••••" onkeydown="if(event.key==='Enter')checkAuth()" />
+    <button onclick="checkAuth()">验 证</button>
+    <div class="auth-error" id="authError">尾号不正确，请重新输入</div>
+  </div>
+</div>
+
+<!-- 主页面（验证后才显示） -->
+<div class="container" id="mainContainer" style="display:none">
   <h1>🏠 家庭任务认领打卡</h1>
   <div><span class="sync-status" id="syncStatus">⏳ 连接中...</span></div>
 
@@ -600,6 +639,33 @@
 </div>
 
 <script>
+// ===== 身份验证 =====
+const AUTH_CODES = ['2219', '3324'];
+const AUTH_KEY = 'family_auth';
+
+function checkAuth() {
+  const input = document.getElementById('authCode');
+  const code = input.value.trim();
+  if (AUTH_CODES.includes(code)) {
+    localStorage.setItem(AUTH_KEY, code);
+    enterApp();
+  } else {
+    document.getElementById('authError').style.display = 'block';
+    input.value = '';
+    input.focus();
+  }
+}
+
+function enterApp() {
+  document.getElementById('authOverlay').style.display = 'none';
+  document.getElementById('mainContainer').style.display = 'block';
+}
+
+// 检查是否已验证
+if (localStorage.getItem(AUTH_KEY) && AUTH_CODES.includes(localStorage.getItem(AUTH_KEY))) {
+  enterApp();
+}
+
 // ===== 任务数据定义 =====
 const TASKS = {
   daily: [
