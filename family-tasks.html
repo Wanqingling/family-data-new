@@ -954,6 +954,7 @@ function addLog(action, detail) {
 }
 
 function showChangeLog() {
+  closeLog(); // 防止重复打开多个弹窗
   const logs = loadLog();
   const opLabels = { dad: '👨爸爸', mom: '👩妈妈' };
   let html = '<div class="log-overlay" id="logOverlay" onclick="if(event.target===this)closeLog()">';
@@ -1276,7 +1277,6 @@ function renderTimeStats() {
 
   // ===== 扣减项计算 =====
   const deducts = loadDeducts();
-  const dk = dateKey();
 
   // ===== 自由时间兑换提示 =====
   if (timePeriod === 'weekly' || timePeriod === 'cumulative') {
