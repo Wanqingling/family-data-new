@@ -1423,9 +1423,9 @@ function getWeekendKey() {
     d.setDate(d.getDate() - 1); // 周日→前一个周六
     return dateKey(d);
   }
-  // 周一到周五→找刚过去的上一个周六
+  // 周一到周五→找即将到来的下一个周六（截止日还没到，需要确认的是下一个周末）
   const sat = new Date(d);
-  sat.setDate(d.getDate() - (dayOfWeek + 1));
+  sat.setDate(d.getDate() + (6 - dayOfWeek));
   return dateKey(sat);
 }
 
