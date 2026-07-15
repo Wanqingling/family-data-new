@@ -1841,7 +1841,11 @@ async function fetchFromGitHub() {
     const data = await ghRequest(url);
 
     ghFileSha = data.sha;
-    const content = JSON.parse(atob(data.content));
+    // 正确解码 UTF-8（atob 不能直接处理中文）
+    const b64 = atob(data.content);
+    const bytes = new Uint8Array(b64.length);
+    for (let i = 0; i < b64.length; i++) bytes[i] = b64.charCodeAt(i);
+    const content = JSON.parse(new TextDecoder('utf-8').decode(bytes));
 
     // 合并数据：以时间戳决定谁更新
     const localTime = parseInt(localStorage.getItem('lastSyncTime') || '0');
