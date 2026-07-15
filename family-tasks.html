@@ -973,7 +973,7 @@ const TASKS = {
 const CUSTOM_TASKS_KEY = 'family_custom_tasks';
 
 function loadCustomTasks() {
-  return safeParse(localStorage.getItem(CUSTOM_TASKS_KEY), {});
+  return safeParse(localStorage.getItem(CUSTOM_TASKS_KEY), {}) || {};
 }
 
 function saveCustomTasks(data) {
