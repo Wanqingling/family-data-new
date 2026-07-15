@@ -879,7 +879,13 @@ const ALL_TASKS = [...TASKS.daily, ...TASKS.weekly, ...TASKS.shared, ...TASKS.we
 
 // ===== 状态管理 =====
 const STORAGE_KEY = 'family_tasks_v2';
-let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+// 安全解析 JSON，防止 localStorage 数据损坏时页面崩溃
+function safeParse(str, fallback) {
+  try { return JSON.parse(str); } catch(e) { console.warn('JSON parse failed, using fallback:', e.message); return fallback; }
+}
+
+let state = safeParse(localStorage.getItem(STORAGE_KEY), {});
 let currentDate = new Date();
 let currentTab = 'daily';
 let timePeriod = 'daily';
@@ -919,7 +925,7 @@ const LOG_KEY = 'family_changelog';
 const MAX_LOG = 200; // 最多保留200条
 
 function loadLog() {
-  return JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+  return safeParse(localStorage.getItem(LOG_KEY), []);
 }
 
 function addLog(action, detail) {
@@ -1013,6 +1019,8 @@ function selectCalDate(dk) {
   selected.setHours(0,0,0,0);
   if (selected > today) return;
   currentDate = selected;
+  // 同步日历显示月份
+  calViewDate = new Date(selected.getFullYear(), selected.getMonth(), 1);
   // 选完日期后收起日历
   document.querySelector('.cal-wrap').classList.remove('open');
   renderAll();
@@ -1422,7 +1430,7 @@ function getWeekendKey() {
 }
 
 function loadWeekendConfirm() {
-  return JSON.parse(localStorage.getItem(WEEKEND_KEY) || '{}');
+  return safeParse(localStorage.getItem(WEEKEND_KEY), {});
 }
 
 function saveWeekendConfirm(data) {
@@ -1658,7 +1666,7 @@ const RULES_KEY = 'family_task_rules';
 const DEDUCTS_KEY = 'family_task_deducts';
 
 function loadRules() {
-  const saved = JSON.parse(localStorage.getItem(RULES_KEY) || 'null');
+  const saved = safeParse(localStorage.getItem(RULES_KEY), null);
   return saved || { dadWork: 1, dadFree: 1, momWork: 1, momCompanion: 1 };
 }
 
@@ -1676,7 +1684,7 @@ function saveRules() {
 }
 
 function loadDeducts() {
-  return JSON.parse(localStorage.getItem(DEDUCTS_KEY) || '{"dad":{},"mom":{}}');
+  return safeParse(localStorage.getItem(DEDUCTS_KEY), {"dad":{},"mom":{}});
 }
 
 function saveDeducts(deducts) {
@@ -1894,10 +1902,10 @@ async function pushToGitHub() {
     const now = Date.now();
     const payload = {
       tasks: state,
-      rules: JSON.parse(localStorage.getItem(RULES_KEY) || 'null'),
-      deducts: JSON.parse(localStorage.getItem(DEDUCTS_KEY) || '{"dad":{},"mom":{}}'),
-      weekend: JSON.parse(localStorage.getItem(WEEKEND_KEY) || '{}'),
-      log: JSON.parse(localStorage.getItem(LOG_KEY) || '[]'),
+      rules: safeParse(localStorage.getItem(RULES_KEY), null),
+      deducts: safeParse(localStorage.getItem(DEDUCTS_KEY), {"dad":{},"mom":{}}),
+      weekend: safeParse(localStorage.getItem(WEEKEND_KEY), {}),
+      log: safeParse(localStorage.getItem(LOG_KEY), []),
       timestamp: now
     };
     const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
