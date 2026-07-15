@@ -527,7 +527,7 @@
 <!-- 主页面（验证后才显示） -->
 <div class="container" id="mainContainer" style="display:none">
   <h1>🏠 家庭任务认领打卡</h1>
-  <div><span class="sync-status" id="syncStatus">⏳ 连接中...</span></div>
+  <div style="text-align:center;margin-bottom:12px"><span class="sync-status" id="syncStatus">⏳ 连接中...</span></div>
 
   <!-- 兑换规则（最前面） -->
   <div class="rules-panel">
@@ -770,9 +770,6 @@ const TASKS = {
   ],
   weekend: []
 };
-
-// 周末陪伴最低要求：每周 3 小时 = 180 分钟
-const WEEKEND_MIN_MINUTES = 180;
 
 // ===== 状态管理 =====
 const STORAGE_KEY = 'family_tasks_v2';
@@ -1347,7 +1344,11 @@ function renderTaskList() {
   let doneTasks = 0;
   let html = '';
 
+  const todayDow = currentDate.getDay(); // 当天星期几
   tasks.forEach(task => {
+    // 每周任务：如果设定了 days，只在对应日期显示
+    if (currentTab === 'weekly' && task.days && !task.days.includes(todayDow)) return;
+
     const ts = getTaskState(task.id) || {};
     const done = !!ts.done;
     const assignee = getCurrentAssignee(ts); // 'dad' | 'mom' | 'joint' | null
@@ -1450,6 +1451,7 @@ function saveRules() {
   };
   localStorage.setItem(RULES_KEY, JSON.stringify(rules));
   renderTimeStats();
+  renderDeductsUI();
   scheduleGitHubSync();
 }
 
