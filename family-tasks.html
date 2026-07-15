@@ -41,30 +41,6 @@
   }
   .date-display .weekday { font-size: 13px; color: #888; font-weight: 400; }
 
-  /* 成员选择 */
-  .members-bar {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-  }
-  .member-chip {
-    padding: 8px 20px;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: all 0.2s;
-  }
-  .member-chip.dad { background: #dbeafe; color: #1e40af; }
-  .member-chip.dad.active { background: #1e40af; color: #fff; }
-  .member-chip.mom { background: #fce7f3; color: #be185d; }
-  .member-chip.mom.active { background: #be185d; color: #fff; }
-  .member-chip.child { background: #d1fae5; color: #065f46; }
-  .member-chip.child.active { background: #065f46; color: #fff; }
-
   /* Tab 切换 */
   .tabs {
     display: flex;
@@ -594,14 +570,6 @@
     <button onclick="goToday()" style="font-size:13px;">今天</button>
   </div>
 
-  <!-- 成员筛选 -->
-  <div class="members-bar">
-    <div class="member-chip dad active" onclick="filterMember('dad', this)">👨 爸爸</div>
-    <div class="member-chip mom active" onclick="filterMember('mom', this)">👩 妈妈</div>
-    <div class="member-chip child" onclick="filterMember('child', this)">👧 孩子</div>
-  </div>
-
-  <!-- 周视图 -->
   <div class="week-grid" id="weekGrid"></div>
 
   <!-- 耗时统计 -->
@@ -811,7 +779,6 @@ const STORAGE_KEY = 'family_tasks_v2';
 let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
 let currentDate = new Date();
 let currentTab = 'daily';
-let memberFilter = { dad: true, mom: true, child: false };
 let timePeriod = 'daily';
 
 function saveState() {
@@ -904,13 +871,6 @@ function selectDate(dk) {
   if (selected > today) return;
   currentDate = selected;
   renderAll();
-}
-
-// ===== 成员筛选 =====
-function filterMember(member, el) {
-  memberFilter[member] = !memberFilter[member];
-  el.classList.toggle('active');
-  renderTaskList();
 }
 
 // ===== Tab 切换 =====
@@ -1394,13 +1354,6 @@ function renderTaskList() {
 
     totalTasks++;
     if (done) doneTasks++;
-
-    // 成员过滤
-    const showTask = !assignee ||
-      (assignee === 'joint' && (memberFilter.dad || memberFilter.mom)) ||
-      memberFilter[assignee];
-
-    if (!showTask && assignee) return;
 
     const memberLabels = { dad: '👨爸爸', mom: '👩妈妈', joint: '🤝共同' };
     const claimText = assignee
