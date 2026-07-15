@@ -882,7 +882,7 @@ const STORAGE_KEY = 'family_tasks_v2';
 
 // 安全解析 JSON，防止 localStorage 数据损坏时页面崩溃
 function safeParse(str, fallback) {
-  try { return JSON.parse(str); } catch(e) { console.warn('JSON parse failed, using fallback:', e.message); return fallback; }
+  try { const r = JSON.parse(str); return r == null ? fallback : r; } catch(e) { console.warn('JSON parse failed, using fallback:', e.message); return fallback; }
 }
 
 let state = safeParse(localStorage.getItem(STORAGE_KEY), {});
