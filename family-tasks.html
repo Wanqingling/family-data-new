@@ -69,7 +69,8 @@
   .tabs {
     display: flex;
     gap: 4px;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
+    margin-top: 16px;
     background: #fff;
     border-radius: 12px;
     padding: 4px;
@@ -93,7 +94,7 @@
   .stats-bar {
     display: flex;
     gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
     flex-wrap: wrap;
   }
   .stat-pill {
@@ -603,30 +604,6 @@
   <!-- 周视图 -->
   <div class="week-grid" id="weekGrid"></div>
 
-  <!-- Tab -->
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('daily', this)">📋 每日必办</div>
-    <div class="tab" onclick="switchTab('weekly', this)">📅 每周任务</div>
-    <div class="tab" onclick="switchTab('shared', this)">🤝 共同陪伴</div>
-    <div class="tab" onclick="switchTab('weekend', this)">🏖 周末陪伴</div>
-  </div>
-
-  <!-- 统计 -->
-  <div class="stats-bar">
-    <div class="stat-pill">
-      <div class="s-label">待完成</div>
-      <div class="s-value" id="statPending">0</div>
-    </div>
-    <div class="stat-pill">
-      <div class="s-label">已完成</div>
-      <div class="s-value done" id="statDone">0</div>
-    </div>
-    <div class="stat-pill">
-      <div class="s-label">完成率</div>
-      <div class="s-value" id="statRate">0%</div>
-    </div>
-  </div>
-
   <!-- 耗时统计 -->
   <div class="time-stats">
     <h3>⏱ 耗时统计</h3>
@@ -667,6 +644,30 @@
         <div id="momDeducts"></div>
         <button class="add-deduct-btn" onclick="addDeduct('mom')">+ 添加</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Tab -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('daily', this)">📋 每日必办</div>
+    <div class="tab" onclick="switchTab('weekly', this)">📅 每周任务</div>
+    <div class="tab" onclick="switchTab('shared', this)">🤝 共同陪伴</div>
+    <div class="tab" onclick="switchTab('weekend', this)">🏖 周末陪伴</div>
+  </div>
+
+  <!-- 统计 -->
+  <div class="stats-bar">
+    <div class="stat-pill">
+      <div class="s-label">待完成</div>
+      <div class="s-value" id="statPending">0</div>
+    </div>
+    <div class="stat-pill">
+      <div class="s-label">已完成</div>
+      <div class="s-value done" id="statDone">0</div>
+    </div>
+    <div class="stat-pill">
+      <div class="s-label">完成率</div>
+      <div class="s-value" id="statRate">0%</div>
     </div>
   </div>
 
