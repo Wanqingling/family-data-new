@@ -517,99 +517,6 @@
   .log-entry .log-op.mom { color: #be185d; }
   .log-close { background: #f5f5f5; border: none; padding: 8px 20px; border-radius: 8px; margin-top: 12px; cursor: pointer; font-size: 13px; }
 
-  /* 新增任务按钮 */
-  .add-task-btn {
-    background: #fff;
-    border: 2px dashed #ccc;
-    border-radius: 12px;
-    padding: 16px;
-    text-align: center;
-    color: #999;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-bottom: 10px;
-  }
-  .add-task-btn:hover { border-color: #4a6cf7; color: #4a6cf7; background: #f8f9ff; }
-
-  /* 任务管理按钮 */
-  .task-manage-btn {
-    background: none;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 2px 8px;
-    font-size: 14px;
-    cursor: pointer;
-    color: #999;
-    line-height: 1;
-  }
-  .task-manage-btn:hover { background: #f5f5f5; color: #333; }
-
-  /* 任务管理菜单 */
-  .task-menu-overlay {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.3); z-index: 9997;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .task-menu-box {
-    background: #fff; border-radius: 14px; padding: 8px; min-width: 200px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-  }
-  .task-menu-box button {
-    display: block; width: 100%; padding: 12px 16px; border: none; background: none;
-    text-align: left; font-size: 14px; cursor: pointer; border-radius: 10px; color: #333;
-  }
-  .task-menu-box button:hover { background: #f5f5f5; }
-  .task-menu-box button.danger { color: #ef4444; }
-  .task-menu-box .menu-divider { border-top: 1px solid #f0f0f0; margin: 4px 0; }
-
-  /* 任务表单弹窗 */
-  .form-overlay {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.4); z-index: 9998;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .form-box {
-    background: #fff; border-radius: 16px; padding: 24px; max-width: 440px; width: 92%;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-  }
-  .form-box h3 { font-size: 16px; margin-bottom: 16px; }
-  .form-row { margin-bottom: 14px; }
-  .form-row label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
-  .form-row input, .form-row textarea, .form-row select {
-    width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
-    font-size: 14px; outline: none; box-sizing: border-box;
-  }
-  .form-row input:focus, .form-row textarea:focus { border-color: #4a6cf7; }
-  .form-row textarea { min-height: 60px; resize: vertical; }
-  .form-row .time-inputs { display: flex; gap: 8px; align-items: center; }
-  .form-row .time-inputs input { width: 80px; text-align: center; }
-  .form-row .time-inputs span { font-size: 12px; color: #888; }
-  .form-days { display: flex; gap: 4px; flex-wrap: wrap; }
-  .form-days label {
-    padding: 6px 10px; border: 1px solid #ddd; border-radius: 8px;
-    font-size: 12px; cursor: pointer; user-select: none;
-  }
-  .form-days label.checked { background: #4a2c0a; color: #fff; border-color: #4a2c0a; }
-  .form-templates { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
-  .form-templates button {
-    padding: 6px 12px; border: 1px solid #ddd; border-radius: 8px;
-    background: #f9fafb; font-size: 12px; cursor: pointer; color: #666;
-  }
-  .form-templates button:hover { background: #e8e8e8; }
-  .form-actions { display: flex; gap: 8px; margin-top: 16px; }
-  .form-actions button {
-    flex: 1; padding: 12px; border: none; border-radius: 10px;
-    font-size: 14px; font-weight: 600; cursor: pointer;
-  }
-  .form-actions .btn-save { background: #4a2c0a; color: #fff; }
-  .form-actions .btn-cancel { background: #f5f5f5; color: #666; }
-
-  /* 多步确认弹窗 */
-  .confirm-step { text-align: center; padding: 10px 0; }
-  .confirm-step p { font-size: 14px; margin-bottom: 6px; line-height: 1.6; }
-  .confirm-step .warn { color: #ef4444; font-weight: 600; font-size: 13px; }
-
   .empty-state {
     text-align: center;
     padding: 40px;
@@ -968,62 +875,14 @@ const TASKS = {
   ],
   weekend: []
 };
-
-// ===== 自定义任务管理 =====
-const CUSTOM_TASKS_KEY = 'family_custom_tasks';
-
-function loadCustomTasks() {
-  return safeParse(localStorage.getItem(CUSTOM_TASKS_KEY), {}) || {};
-}
-
-function saveCustomTasks(data) {
-  localStorage.setItem(CUSTOM_TASKS_KEY, JSON.stringify(data));
-  scheduleGitHubSync();
-}
-
-// 判断任务是否为默认任务（ID 不以 c_ 开头）
-function isBuiltInTask(taskId) {
-  return !taskId.startsWith('c_');
-}
-
-// 获取所有活跃任务（合并默认 + 自定义，过滤停用）
-function getAllActiveTasks() {
-  const custom = loadCustomTasks();
-  const dk = dateKey(currentDate);
-  const result = [];
-
-  // 1. 默认任务（可被 custom 覆盖配置）
-  for (const cat of Object.keys(TASKS)) {
-    TASKS[cat].forEach(task => {
-      const override = custom[task.id];
-      if (override && override.retiredFrom && override.retiredFrom <= dk) return; // 已停用
-      const merged = override ? { ...task, ...override, id: task.id, _tab: cat } : { ...task, _tab: cat };
-      result.push(merged);
-    });
-  }
-
-  // 2. 纯自定义任务（c_ 开头）
-  Object.keys(custom).forEach(id => {
-    if (!id.startsWith('c_')) return;
-    const t = custom[id];
-    if (t.retiredFrom && t.retiredFrom <= dk) return;
-    result.push({ ...t, id, _tab: t.tab || 'daily' });
-  });
-
-  return result;
-}
-
-// 按标签页获取活跃任务
-function getActiveTasks(tab) {
-  return getAllActiveTasks().filter(t => t._tab === tab);
-}
+const ALL_TASKS = [...TASKS.daily, ...TASKS.weekly, ...TASKS.shared, ...TASKS.weekend];
 
 // ===== 状态管理 =====
 const STORAGE_KEY = 'family_tasks_v2';
 
 // 安全解析 JSON，防止 localStorage 数据损坏时页面崩溃
 function safeParse(str, fallback) {
-  try { const r = JSON.parse(str); return r == null ? fallback : r; } catch(e) { console.warn('JSON parse failed, using fallback:', e.message); return fallback; }
+  try { return JSON.parse(str); } catch(e) { console.warn('JSON parse failed, using fallback:', e.message); return fallback; }
 }
 
 let state = safeParse(localStorage.getItem(STORAGE_KEY), {});
@@ -1189,7 +1048,7 @@ function renderCalendar() {
   const lastDay = new Date(year, month + 1, 0);
   const startDow = firstDay.getDay(); // 第一天是星期几
 
-  const allTasks = getAllActiveTasks();
+  const allTasks = ALL_TASKS;
   let html = '';
 
   // 填充月初空白
@@ -1303,20 +1162,6 @@ function setActualTime(taskId, who, value) {
 
 // 查找任务定义
 function findTask(taskId) {
-  // 先查自定义任务（覆盖或新增）
-  const custom = loadCustomTasks();
-  if (custom[taskId]) {
-    const t = custom[taskId];
-    // 如果是覆盖默认任务，合并默认值
-    if (isBuiltInTask(taskId)) {
-      for (const cat of Object.values(TASKS)) {
-        const orig = cat.find(x => x.id === taskId);
-        if (orig) return { ...orig, ...t, id: taskId };
-      }
-    }
-    return { ...t, id: taskId };
-  }
-  // 再查默认任务
   for (const cat of Object.values(TASKS)) {
     const found = cat.find(t => t.id === taskId);
     if (found) return found;
@@ -1699,7 +1544,7 @@ function getWeekendPenalties(dateKeys) {
 
 // ===== 渲染任务列表 =====
 function renderTaskList() {
-  const tasks = getActiveTasks(currentTab);
+  const tasks = TASKS[currentTab] || [];
   const listEl = document.getElementById('taskList');
 
   // 周末标签页：先显示确认面板
@@ -1709,8 +1554,7 @@ function renderTaskList() {
   }
 
   if (tasks.length === 0) {
-    listEl.innerHTML = prefixHtml + '<div class="empty-state">暂无任务</div>' +
-      (currentTab !== 'weekend' ? '<div class="add-task-btn" onclick="showAddTaskForm()">+ 新增任务</div>' : '');
+    listEl.innerHTML = prefixHtml + '<div class="empty-state">暂无任务</div>';
     return;
   }
 
@@ -1785,27 +1629,16 @@ function renderTaskList() {
             onclick="setAssignee('${task.id}','joint')">🤝 共同</button>
         </div>`;
 
-    // 管理按钮（非只读时显示）
-    const manageBtn = readOnly ? '' : `<button class="task-manage-btn" onclick="event.stopPropagation();showTaskMenu('${task.id}')">⋯</button>`;
-
-    // 任务说明（可能为空）
-    const notesContent = task.notes ? task.notes.replace(/\n/g, '<br>') : '';
-    const notesHtml = notesContent || task.timeEst ? `
-      <button class="toggle-notes" onclick="toggleNotes('${notesId}', this)">展开详情 ▼</button>
-      <div class="task-notes collapsed" id="${notesId}">${notesContent}
-        ${task.timeEst ? '<br><b>⏱ 预计耗时：' + task.timeEst + '</b>' : ''}
-      </div>` : '';
-
     html += `
       <div class="task-card${done ? ' checked' : ''}${roClass}">
         <div class="task-header">
-          <div class="task-title">${done ? '✅ ' : ''}${escapeHtml2(task.title)}${roBadge}</div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <div class="task-freq">${escapeHtml2(task.freq || '')}</div>
-            ${manageBtn}
-          </div>
+          <div class="task-title">${done ? '✅ ' : ''}${task.title}${roBadge}</div>
+          <div class="task-freq">${task.freq}</div>
         </div>
-        ${notesHtml}
+        <button class="toggle-notes" onclick="toggleNotes('${notesId}', this)">展开详情 ▼</button>
+        <div class="task-notes collapsed" id="${notesId}">${task.notes.replace(/\n/g, '<br>')}
+          ${task.timeEst ? '<br><b>⏱ 预计耗时：' + task.timeEst + '</b>' : ''}
+        </div>
         ${actionsHtml}
         <div class="claim-info">${claimText}${ts.doneTime ? ' · 完成于 ' + ts.doneTime : ''}</div>
         ${timeInputHtml ? '<div class="actual-time-row">' + timeInputHtml + '</div>' : ''}
@@ -1813,10 +1646,7 @@ function renderTaskList() {
     `;
   });
 
-  // 新增任务按钮（周末陪伴标签页不显示）
-  const addBtn = currentTab !== 'weekend' ? '<div class="add-task-btn" onclick="showAddTaskForm()">+ 新增任务</div>' : '';
-
-  listEl.innerHTML = prefixHtml + (html || '<div class="empty-state">没有匹配的任务</div>') + addBtn;
+  listEl.innerHTML = prefixHtml + (html || '<div class="empty-state">没有匹配的任务</div>');
 
   // 更新统计
   document.getElementById('statPending').textContent = totalTasks - doneTasks;
@@ -1829,310 +1659,6 @@ function toggleNotes(id, btn) {
   const el = document.getElementById(id);
   el.classList.toggle('collapsed');
   btn.textContent = el.classList.contains('collapsed') ? '展开详情 ▼' : '收起详情 ▲';
-}
-
-// ===== 任务管理菜单 =====
-function closeOverlay(id) {
-  const el = document.getElementById(id);
-  if (el) el.remove();
-}
-
-function showTaskMenu(taskId) {
-  closeOverlay('taskMenuOverlay');
-  const task = findTask(taskId);
-  const isBuiltIn = isBuiltInTask(taskId);
-  const custom = loadCustomTasks();
-  const isRetired = custom[taskId]?.retiredFrom;
-
-  let html = `<div class="task-menu-overlay" id="taskMenuOverlay" onclick="if(event.target===this)closeOverlay('taskMenuOverlay')">
-    <div class="task-menu-box">
-      <div style="padding:8px 16px;font-size:12px;color:#999;border-bottom:1px solid #f0f0f0;margin-bottom:4px">${escapeHtml2(task?.title || '任务')}</div>
-      <button onclick="closeOverlay('taskMenuOverlay');showEditTaskForm('${taskId}')">✏️ 编辑任务</button>`;
-
-  if (!isRetired) {
-    html += `<button onclick="closeOverlay('taskMenuOverlay');showRetireForm('${taskId}')">📅 从某天起停用</button>`;
-  }
-
-  if (!isBuiltIn) {
-    html += `<div class="menu-divider"></div>`;
-    html += `<button class="danger" onclick="closeOverlay('taskMenuOverlay');deleteCustomTask('${taskId}')">🗑 删除任务</button>`;
-  } else if (isRetired) {
-    html += `<button onclick="closeOverlay('taskMenuOverlay');unretireTask('${taskId}')">♻️ 恢复任务</button>`;
-  }
-
-  html += `<div class="menu-divider"></div>
-      <button onclick="closeOverlay('taskMenuOverlay')" style="color:#999">取消</button>
-    </div></div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-
-// ===== 新增/编辑任务表单 =====
-const DAY_LABELS = ['日','一','二','三','四','五','六'];
-
-function showAddTaskForm() {
-  showTaskForm(null);
-}
-
-function showEditTaskForm(taskId) {
-  showTaskForm(taskId);
-}
-
-function showTaskForm(taskId) {
-  closeOverlay('taskFormOverlay');
-  const isEdit = !!taskId;
-  const task = isEdit ? findTask(taskId) : null;
-  const title = isEdit ? '编辑任务' : '新增任务';
-
-  const templates = [
-    { label: '30分钟', min: 30 },
-    { label: '1小时', min: 60 },
-    { label: '1.5小时', min: 90 },
-    { label: '2小时', min: 120 }
-  ];
-
-  const curTitle = task ? task.title : '';
-  const curDadMin = task?.minutes?.dad ?? 30;
-  const curMomMin = task?.minutes?.mom ?? 30;
-  const curNotes = task?.notes || '';
-  const curFreq = task?.freq || '';
-  const curDays = task?.days || [];
-
-  let html = `<div class="form-overlay" id="taskFormOverlay" onclick="if(event.target===this)closeOverlay('taskFormOverlay')">
-    <div class="form-box">
-      <h3>${title}</h3>
-      <div class="form-templates">
-        <span style="font-size:12px;color:#999;line-height:28px">快捷模板：</span>
-        ${templates.map(t => `<button onclick="applyTemplate(${t.min})">${t.label}</button>`).join('')}
-      </div>
-      <div class="form-row">
-        <label>任务名称 *</label>
-        <input type="text" id="taskFormTitle" value="${escapeHtml2(curTitle)}" placeholder="例：带钢琴课" />
-      </div>
-      <div class="form-row">
-        <label>预估耗时（分钟）</label>
-        <div class="time-inputs">
-          <span>👨</span><input type="number" id="taskFormDadMin" value="${curDadMin}" min="0" />
-          <span>分钟</span>
-          <span style="margin-left:12px">👩</span><input type="number" id="taskFormMomMin" value="${curMomMin}" min="0" />
-          <span>分钟</span>
-        </div>
-      </div>
-      <div class="form-row">
-        <label>频率说明</label>
-        <input type="text" id="taskFormFreq" value="${escapeHtml2(curFreq)}" placeholder="例：每天 / 每周2次" />
-      </div>
-      <div class="form-row">
-        <label>任务说明（选填）</label>
-        <textarea id="taskFormNotes" placeholder="具体要求和注意事项...">${escapeHtml2(curNotes)}</textarea>
-      </div>`;
-
-  // 每周任务标签页：显示星期选择
-  if (currentTab === 'weekly') {
-    html += `<div class="form-row">
-        <label>每周哪几天</label>
-        <div class="form-days" id="taskFormDays">
-          ${DAY_LABELS.map((d, i) => `<label class="${curDays.includes(i) ? 'checked' : ''}" onclick="toggleDayLabel(this,${i})">${d}</label>`).join('')}
-        </div>
-      </div>`;
-  }
-
-  html += `<div class="form-actions">
-        <button class="btn-cancel" onclick="closeOverlay('taskFormOverlay')">取消</button>
-        <button class="btn-save" onclick="saveTaskForm('${taskId || ''}')">${isEdit ? '保存' : '添加'}</button>
-      </div>
-    </div></div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-
-function applyTemplate(min) {
-  document.getElementById('taskFormDadMin').value = min;
-  document.getElementById('taskFormMomMin').value = min;
-}
-
-function toggleDayLabel(el, dayIndex) {
-  el.classList.toggle('checked');
-}
-
-function getSelectedDays() {
-  const days = [];
-  document.querySelectorAll('#taskFormDays label.checked').forEach((el, i) => {
-    // 需要从所有 label 中找 checked 的
-  });
-  // 重新遍历
-  const labels = document.querySelectorAll('#taskFormDays label');
-  labels.forEach((label, i) => {
-    if (label.classList.contains('checked')) days.push(i);
-  });
-  return days.length > 0 ? days : undefined;
-}
-
-function saveTaskForm(taskId) {
-  const title = document.getElementById('taskFormTitle').value.trim();
-  if (!title) { alert('请填写任务名称'); return; }
-
-  const dadMin = Math.max(0, parseInt(document.getElementById('taskFormDadMin').value) || 30);
-  const momMin = Math.max(0, parseInt(document.getElementById('taskFormMomMin').value) || 30);
-  const freq = document.getElementById('taskFormFreq').value.trim();
-  const notes = document.getElementById('taskFormNotes').value.trim();
-  const daysEl = document.getElementById('taskFormDays');
-  const days = daysEl ? getSelectedDays() : undefined;
-
-  const custom = loadCustomTasks();
-
-  if (taskId) {
-    // 编辑现有任务
-    const existing = custom[taskId] || {};
-    custom[taskId] = {
-      ...existing,
-      title,
-      minutes: { dad: dadMin, mom: momMin },
-      freq: freq || existing.freq || '',
-      notes: notes,
-      timeEst: dadMin >= 60 ? (dadMin % 60 > 0 ? Math.floor(dadMin/60) + '小时' + dadMin%60 + '分钟' : Math.floor(dadMin/60) + '小时') : dadMin + '分钟'
-    };
-    if (days !== undefined) custom[taskId].days = days;
-    addLog('编辑任务', title);
-  } else {
-    // 新增自定义任务
-    const newId = 'c_' + Date.now();
-    custom[newId] = {
-      title,
-      minutes: { dad: dadMin, mom: momMin },
-      freq: freq || '',
-      notes: notes,
-      timeEst: dadMin >= 60 ? (dadMin % 60 > 0 ? Math.floor(dadMin/60) + '小时' + dadMin%60 + '分钟' : Math.floor(dadMin/60) + '小时') : dadMin + '分钟',
-      tab: currentTab,
-      days: days
-    };
-    addLog('新增任务', title + ' · ' + dadMin + '分钟');
-  }
-
-  saveCustomTasks(custom);
-  closeOverlay('taskFormOverlay');
-  renderAll();
-}
-
-// ===== 停用/恢复/删除 =====
-function showRetireForm(taskId) {
-  closeOverlay('taskFormOverlay');
-  const task = findTask(taskId);
-  const today = dateKey(currentDate);
-
-  let html = `<div class="form-overlay" id="taskFormOverlay" onclick="if(event.target===this)closeOverlay('taskFormOverlay')">
-    <div class="form-box">
-      <h3>停用任务</h3>
-      <p style="font-size:13px;color:#666;margin-bottom:12px">选择从哪天起不再显示 "<b>${escapeHtml2(task?.title || '')}</b>"。历史数据不受影响。</p>
-      <div class="form-row">
-        <label>停用起始日期</label>
-        <input type="date" id="retireDate" value="${today}" />
-      </div>
-      <div class="form-actions">
-        <button class="btn-cancel" onclick="closeOverlay('taskFormOverlay')">取消</button>
-        <button class="btn-save" style="background:#ef4444" onclick="confirmRetire('${taskId}')">确认停用</button>
-      </div>
-    </div></div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-
-function confirmRetire(taskId) {
-  const date = document.getElementById('retireDate').value;
-  if (!date) { alert('请选择日期'); return; }
-
-  const task = findTask(taskId);
-  const isBuiltIn = isBuiltInTask(taskId);
-
-  if (isBuiltIn) {
-    // 默认任务：三次确认
-    showMultiStepConfirm(
-      `<p>确定要停用 "<b>${escapeHtml2(task?.title)}</b>" 吗？</p><p>从 <b>${date}</b> 起不再显示。</p>`,
-      `<p class="warn">该任务从 ${date} 起将不再出现在任务列表中。</p><p>历史打卡数据和统计不受影响。</p>`,
-      `<p class="warn">⚠️ 这是系统默认任务，确定要停用吗？</p><p>如需恢复，可在任务管理中操作。</p>`,
-      () => {
-        doRetire(taskId, date);
-      }
-    );
-  } else {
-    // 自定义任务：直接停用
-    doRetire(taskId, date);
-  }
-}
-
-function doRetire(taskId, date) {
-  const custom = loadCustomTasks();
-  if (!custom[taskId]) custom[taskId] = {};
-  custom[taskId].retiredFrom = date;
-  saveCustomTasks(custom);
-  addLog('停用任务', (findTask(taskId)?.title || taskId) + ' · 从' + date + '起');
-  closeOverlay('taskFormOverlay');
-  closeOverlay('confirmOverlay');
-  renderAll();
-}
-
-function unretireTask(taskId) {
-  const custom = loadCustomTasks();
-  if (custom[taskId]) {
-    delete custom[taskId].retiredFrom;
-    if (Object.keys(custom[taskId]).length === 0) delete custom[taskId];
-    saveCustomTasks(custom);
-    addLog('恢复任务', findTask(taskId)?.title || taskId);
-    renderAll();
-  }
-}
-
-function deleteCustomTask(taskId) {
-  if (!isBuiltInTask(taskId)) {
-    // 自定义任务：二次确认
-    const task = findTask(taskId);
-    showMultiStepConfirm(
-      `<p>确定要删除 "<b>${escapeHtml2(task?.title)}</b>" 吗？</p>`,
-      `<p class="warn">⚠️ 删除后不可恢复，历史打卡数据将无法关联到此任务。</p>`,
-      null,
-      () => {
-        const custom = loadCustomTasks();
-        addLog('删除任务', task?.title || taskId);
-        delete custom[taskId];
-        saveCustomTasks(custom);
-        closeOverlay('confirmOverlay');
-        renderAll();
-      }
-    );
-  }
-}
-
-// ===== 多步确认弹窗 =====
-function showMultiStepConfirm(step1Html, step2Html, step3Html, onConfirm) {
-  closeOverlay('confirmOverlay');
-  // 存到全局以便后续步骤调用
-  window._confirmSteps = [step1Html, step2Html, step3Html].filter(Boolean);
-  window._confirmStepIndex = 0;
-  window._confirmOnConfirm = onConfirm;
-  renderConfirmStep();
-}
-
-function renderConfirmStep() {
-  const steps = window._confirmSteps;
-  const idx = window._confirmStepIndex;
-  const isLast = idx >= steps.length - 1;
-
-  let html = `<div class="form-overlay" id="confirmOverlay" onclick="if(event.target===this)closeOverlay('confirmOverlay')">
-    <div class="form-box" style="max-width:360px">
-      <h3>⚠️ 确认操作</h3>
-      <div class="confirm-step">${steps[idx]}</div>
-      <div class="form-actions">
-        <button class="btn-cancel" onclick="closeOverlay('confirmOverlay')">取消</button>
-        <button class="btn-save" style="background:${isLast ? '#ef4444' : '#4a2c0a'}"
-          onclick="${isLast ? 'window._confirmOnConfirm()' : 'nextConfirmStep()'}">${isLast ? '确认' : '下一步'}</button>
-      </div>
-      ${!isLast ? '<div style="text-align:center;font-size:11px;color:#ccc;margin-top:8px">第 ' + (idx+1) + ' / ' + steps.length + ' 步</div>' : ''}
-    </div></div>`;
-
-  closeOverlay('confirmOverlay');
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-
-function nextConfirmStep() {
-  window._confirmStepIndex++;
-  renderConfirmStep();
 }
 
 // ===== 规则管理 =====
@@ -2324,7 +1850,6 @@ async function fetchFromGitHub() {
       if (content.rules) { localStorage.setItem(RULES_KEY, JSON.stringify(content.rules)); }
       if (content.deducts) { localStorage.setItem(DEDUCTS_KEY, JSON.stringify(content.deducts)); }
       if (content.weekend) { localStorage.setItem(WEEKEND_KEY, JSON.stringify(content.weekend)); }
-      if (content.customTasks) { localStorage.setItem(CUSTOM_TASKS_KEY, JSON.stringify(content.customTasks)); }
       if (content.log) { localStorage.setItem(LOG_KEY, JSON.stringify(content.log)); }
       localStorage.setItem('lastSyncTime', String(ghTime));
       setSyncStatus('✅ 已从云端同步', 'ok');
@@ -2380,7 +1905,6 @@ async function pushToGitHub() {
       rules: safeParse(localStorage.getItem(RULES_KEY), null),
       deducts: safeParse(localStorage.getItem(DEDUCTS_KEY), {"dad":{},"mom":{}}),
       weekend: safeParse(localStorage.getItem(WEEKEND_KEY), {}),
-      customTasks: safeParse(localStorage.getItem(CUSTOM_TASKS_KEY), {}),
       log: safeParse(localStorage.getItem(LOG_KEY), []),
       timestamp: now
     };
