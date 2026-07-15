@@ -969,10 +969,9 @@ function renderTimeStats() {
     saturday.setDate(sunday.getDate() + 6);
     dateKeys = getDateKeysInRange(sunday, saturday);
   } else {
-    // 累计：本周日到当前选择的日期
-    const sunday = new Date(currentDate);
-    sunday.setDate(currentDate.getDate() - currentDate.getDay());
-    dateKeys = getDateKeysInRange(sunday, currentDate);
+    // 累计：从有记录以来到当前选择的日期
+    const currentDk = dateKey(currentDate);
+    dateKeys = Object.keys(state).filter(k => k <= currentDk).sort();
   }
 
   let dadMinutes = 0, momMinutes = 0;
