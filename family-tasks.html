@@ -892,6 +892,7 @@ const TASKS = {
   ],
   weekend: []
 };
+const ALL_TASKS = [...TASKS.daily, ...TASKS.weekly, ...TASKS.shared, ...TASKS.weekend];
 
 // ===== 状态管理 =====
 const STORAGE_KEY = 'family_tasks_v2';
@@ -965,7 +966,7 @@ function showChangeLog() {
         <span class="log-time">${l.time}</span> ·
         <span class="log-op ${l.operator}">${opLabels[l.operator] || l.operator}</span> ·
         ${l.date} · ${l.action}
-        ${l.detail ? '<br><span style="color:#999">' + l.detail + '</span>' : ''}
+        ${l.detail ? '<br><span style="color:#999">' + escapeHtml2(l.detail) + '</span>' : ''}
       </div>`;
     });
   }
@@ -1055,7 +1056,7 @@ function renderCalendar() {
   const lastDay = new Date(year, month + 1, 0);
   const startDow = firstDay.getDay(); // 第一天是星期几
 
-  const allTasks = [...TASKS.daily, ...TASKS.weekly, ...TASKS.shared, ...TASKS.weekend];
+  const allTasks = ALL_TASKS;
   let html = '';
 
   // 填充月初空白
@@ -1083,7 +1084,7 @@ function renderCalendar() {
 
     html += `<div class="${cls}" onclick="selectCalDate('${dk}')">
       ${day}
-      ${doneCount > 0 ? '<span class="cal-check">✓'+doneCount+'</span>' : ''}
+      ${doneCount > 0 && !isDateReadOnly(dt) ? '<span class="cal-check">✓'+doneCount+'</span>' : ''}
     </div>`;
   }
 
@@ -1426,16 +1427,15 @@ const WEEKEND_PENALTY_MIN = 240; // 未参与扣 4 小时（欠2小时×双倍�
 function getWeekendKey() {
   // 以本周六为周末标识（周六 + 周日属于同一个周末）
   const d = new Date(currentDate);
-  // 找到本周六
   const dayOfWeek = d.getDay(); // 0=周日, 6=周六
   if (dayOfWeek === 6) return dateKey(d);
   if (dayOfWeek === 0) {
     d.setDate(d.getDate() - 1); // 周日→前一个周六
     return dateKey(d);
   }
-  // 周一到周五→找下一个周六（还没到周末，但显示当前周末）
+  // 周一到周五→找刚过去的上一个周六
   const sat = new Date(d);
-  sat.setDate(d.getDate() + (6 - dayOfWeek));
+  sat.setDate(d.getDate() - (dayOfWeek + 1));
   return dateKey(sat);
 }
 
@@ -1591,7 +1591,8 @@ function renderTaskList() {
       : '暂未认领';
 
     const notesId = 'notes-' + task.id;
-    const defaultMin = task.minutes ? task.minutes.dad : 30;
+    const dadDefault = task.minutes ? task.minutes.dad : 30;
+    const momDefault = task.minutes ? task.minutes.mom : 30;
 
     const readOnly = isCurrentDateReadOnly();
 
@@ -1599,22 +1600,22 @@ function renderTaskList() {
     let timeInputHtml = '';
     if (!readOnly) {
       if (assignee === 'dad') {
-        const val = ts.actualDad ?? defaultMin;
+        const val = ts.actualDad ?? dadDefault;
         timeInputHtml = `
           <label>👨 爸爸实际：</label>
           <input type="number" min="0" value="${val}"
             onchange="setActualTime('${task.id}','dad',this.value)" />
           <span class="unit">分钟</span>`;
       } else if (assignee === 'mom') {
-        const val = ts.actualMom ?? defaultMin;
+        const val = ts.actualMom ?? momDefault;
         timeInputHtml = `
           <label>👩 妈妈实际：</label>
           <input type="number" min="0" value="${val}"
             onchange="setActualTime('${task.id}','mom',this.value)" />
           <span class="unit">分钟</span>`;
       } else if (assignee === 'joint') {
-        const dadVal = ts.actualDad ?? defaultMin;
-        const momVal = ts.actualMom ?? defaultMin;
+        const dadVal = ts.actualDad ?? dadDefault;
+        const momVal = ts.actualMom ?? momDefault;
         timeInputHtml = `
           <label>👨 爸爸：</label>
           <input type="number" min="0" value="${dadVal}"
@@ -1713,6 +1714,8 @@ function initRulesUI() {
 function toggleRules(el) {
   const body = document.getElementById('rulesBody');
   body.classList.toggle('open');
+  const hint = el.querySelector('span');
+  if (hint) hint.textContent = body.classList.contains('open') ? '（点击收起）' : '（点击展开）';
 }
 
 // ===== 扣减项管理 =====
