@@ -83,7 +83,6 @@
   .cal-day.selected { background: #4a2c0a; color: #fff !important; }
   .cal-day.selected .cal-check { color: #fff; }
   .cal-day.future { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
-  .cal-day.other-month { opacity: 0.3; }
   .cal-check {
     font-size: 9px;
     color: #16a34a;
@@ -138,14 +137,6 @@
   .stat-pill .s-value.done { color: #16a34a; }
 
   /* 任务卡片 */
-  .task-section { margin-bottom: 20px; }
-  .section-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: #78350f;
-    margin-bottom: 10px;
-    padding-left: 4px;
-  }
   .task-card {
     background: #fff;
     border-radius: 12px;
@@ -206,12 +197,6 @@
   .btn-claim.dad-btn.claimed { background: #1e40af; color: #fff; }
   .btn-claim.mom-btn { background: #fce7f3; color: #be185d; }
   .btn-claim.mom-btn.claimed { background: #be185d; color: #fff; }
-  .btn-claim.check-btn {
-    background: #d1fae5;
-    color: #065f46;
-    margin-left: auto;
-  }
-  .btn-claim.check-btn.done { background: #16a34a; color: #fff; }
   .btn-claim.joint-btn {
     background: #fef3c7;
     color: #92400e;
@@ -240,7 +225,6 @@
   }
   .actual-time-row input:focus { border-color: #4a6cf7; }
   .actual-time-row .unit { font-size: 12px; color: #999; }
-  .actual-time-row .ref { font-size: 11px; color: #bbb; }
 
   /* 耗时统计面板 */
   .time-stats {
@@ -593,7 +577,6 @@
   }
   .wk-btn.confirm { background: #16a34a; color: #fff; }
   .wk-btn.cancel { background: #ef4444; color: #fff; margin-left: 4px; }
-  .wk-btn.confirmed { background: #e5e7eb; color: #6b7280; }
   .wk-locked {
     background: #dcfce7 !important; border: 1px solid #86efac;
   }
@@ -1352,7 +1335,6 @@ function renderTimeStats() {
     if (wkConfirm[dk]?.dad?.confirmed) weekendDadConfirmed++;
     if (wkConfirm[dk]?.mom?.confirmed) weekendMomConfirmed++;
   });
-  const weekendChecked = weekendDadConfirmed + weekendMomConfirmed;
 
   // 把周末惩罚加到扣减项里
   totalDadDeduct += dadWeekendPenalty;
@@ -1555,7 +1537,6 @@ function getWeekendPenalties(dateKeys) {
 // ===== 渲染任务列表 =====
 function renderTaskList() {
   const tasks = TASKS[currentTab] || [];
-  const dk = dateKey();
   const listEl = document.getElementById('taskList');
 
   // 周末标签页：先显示确认面板
@@ -1784,7 +1765,6 @@ function updateDeduct(who, index, field, value) {
   const deducts = loadDeducts();
   const dk = dateKey();
   if (deducts[who]?.[dk]?.[index]) {
-    const old = deducts[who][dk][index][field];
     deducts[who][dk][index][field] = value;
     saveDeducts(deducts);
     const label = field === 'name' ? value : (who === 'dad' ? '爸爸' : '妈妈') + ' · ' + value + '分钟';
@@ -1817,6 +1797,7 @@ const GH = {
 };
 let ghFileSha = null;  // 当前文件的 SHA，更新时需要
 let syncTimer = null;
+let retryTimer = null;
 
 function setSyncStatus(text, cls) {
   const el = document.getElementById('syncStatus');
@@ -1827,9 +1808,11 @@ function setSyncStatus(text, cls) {
       el.style.cursor = 'pointer';
       el.onclick = () => fetchFromGitHub().then(() => renderAll());
       el.title = '点击重试';
-      // 5 秒后自动重试一次
-      setTimeout(() => fetchFromGitHub().then(() => renderAll()), 5000);
+      // 5 秒后自动重试一次（去重）
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(() => fetchFromGitHub().then(() => renderAll()), 5000);
     } else {
+      clearTimeout(retryTimer);
       el.style.cursor = 'default';
       el.onclick = null;
     }
