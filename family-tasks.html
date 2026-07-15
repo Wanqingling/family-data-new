@@ -464,6 +464,75 @@
   }
   .task-notes.collapsed { display: none; }
 
+  /* 操作人选择 */
+  .operator-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 8px 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    font-size: 13px;
+  }
+  .operator-bar .op-label { color: #888; }
+  .op-btn {
+    padding: 5px 14px;
+    border-radius: 16px;
+    border: 2px solid transparent;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .op-btn.dad { background: #dbeafe; color: #1e40af; }
+  .op-btn.dad.active { background: #1e40af; color: #fff; }
+  .op-btn.mom { background: #fce7f3; color: #be185d; }
+  .op-btn.mom.active { background: #be185d; color: #fff; }
+  .op-btn.log { margin-left: auto; background: #f5f5f5; color: #666; font-weight: 400; font-size: 12px; }
+
+  /* 只读标记 */
+  .readonly-badge {
+    display: inline-block;
+    font-size: 11px;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+  }
+  .task-card.readonly {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  .task-card.readonly .toggle-notes { pointer-events: auto; }
+  .cal-day.readonly { opacity: 0.4; }
+  .cal-day.readonly::after {
+    content: '🔒';
+    font-size: 7px;
+    display: block;
+    line-height: 1;
+  }
+
+  /* 修改记录弹窗 */
+  .log-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4); z-index: 9998;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .log-box {
+    background: #fff; border-radius: 16px; padding: 20px; max-width: 500px; width: 92%;
+    max-height: 70vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  }
+  .log-box h3 { font-size: 16px; margin-bottom: 12px; }
+  .log-entry { font-size: 12px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; color: #555; line-height: 1.6; }
+  .log-entry .log-time { color: #999; }
+  .log-entry .log-op { font-weight: 600; }
+  .log-entry .log-op.dad { color: #1e40af; }
+  .log-entry .log-op.mom { color: #be185d; }
+  .log-close { background: #f5f5f5; border: none; padding: 8px 20px; border-radius: 8px; margin-top: 12px; cursor: pointer; font-size: 13px; }
+
   .empty-state {
     text-align: center;
     padding: 40px;
@@ -602,6 +671,14 @@
       </div>
       <div class="cal-grid" id="calGrid"></div>
     </div>
+  </div>
+
+  <!-- 操作人 -->
+  <div class="operator-bar">
+    <span class="op-label">操作人：</span>
+    <button class="op-btn dad active" id="opDad" onclick="setOperator('dad')">👨 爸爸</button>
+    <button class="op-btn mom" id="opMom" onclick="setOperator('mom')">👩 妈妈</button>
+    <button class="op-btn log" onclick="showChangeLog()">📋 记录</button>
   </div>
 
   <!-- 耗时统计 -->
@@ -809,6 +886,80 @@ let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
 let currentDate = new Date();
 let currentTab = 'daily';
 let timePeriod = 'daily';
+let currentOperator = localStorage.getItem('family_operator') || 'dad';
+
+// ===== 只读控制（超过2周的日期不可编辑） =====
+const READONLY_DAYS = 14;
+
+function isDateReadOnly(d) {
+  if (!d) d = currentDate;
+  const target = new Date(d);
+  target.setHours(0,0,0,0);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const diffDays = Math.floor((today - target) / 86400000);
+  return diffDays > READONLY_DAYS;
+}
+
+function isCurrentDateReadOnly() {
+  return isDateReadOnly(currentDate);
+}
+
+// ===== 操作人 =====
+function setOperator(who) {
+  currentOperator = who;
+  localStorage.setItem('family_operator', who);
+  document.getElementById('opDad').classList.toggle('active', who === 'dad');
+  document.getElementById('opMom').classList.toggle('active', who === 'mom');
+}
+
+// ===== 修改记录 =====
+const LOG_KEY = 'family_changelog';
+const MAX_LOG = 200; // 最多保留200条
+
+function loadLog() {
+  return JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+}
+
+function addLog(action, detail) {
+  const logs = loadLog();
+  logs.unshift({
+    time: new Date().toLocaleString('zh-CN'),
+    operator: currentOperator,
+    date: dateKey(),
+    action,
+    detail
+  });
+  if (logs.length > MAX_LOG) logs.length = MAX_LOG;
+  localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+  scheduleGitHubSync();
+}
+
+function showChangeLog() {
+  const logs = loadLog();
+  const opLabels = { dad: '👨爸爸', mom: '👩妈妈' };
+  let html = '<div class="log-overlay" id="logOverlay" onclick="if(event.target===this)closeLog()">';
+  html += '<div class="log-box"><h3>📋 修改记录（最近' + MAX_LOG + '条）</h3>';
+  if (logs.length === 0) {
+    html += '<div style="color:#999;font-size:13px;text-align:center;padding:20px">暂无记录</div>';
+  } else {
+    logs.forEach(l => {
+      html += `<div class="log-entry">
+        <span class="log-time">${l.time}</span> ·
+        <span class="log-op ${l.operator}">${opLabels[l.operator] || l.operator}</span> ·
+        ${l.date} · ${l.action}
+        ${l.detail ? '<br><span style="color:#999">' + l.detail + '</span>' : ''}
+      </div>`;
+    });
+  }
+  html += '<button class="log-close" onclick="closeLog()">关闭</button></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeLog() {
+  const el = document.getElementById('logOverlay');
+  if (el) el.remove();
+}
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -911,6 +1062,7 @@ function renderCalendar() {
     if (isToday) cls += ' today';
     if (isSelected) cls += ' selected';
     if (isFuture) cls += ' future';
+    if (isDateReadOnly(dt)) cls += ' readonly';
 
     html += `<div class="${cls}" onclick="selectCalDate('${dk}')">
       ${day}
@@ -932,8 +1084,12 @@ function switchTab(tab, el) {
 // ===== 认领与打卡（三选一互斥） =====
 // assignee: 'dad' | 'mom' | 'joint' | null
 function setAssignee(taskId, assignee) {
+  if (isCurrentDateReadOnly()) return;
   const ts = getTaskState(taskId) || {};
   const current = ts.joint ? 'joint' : ((ts.assignee) || null);
+  const task = findTask(taskId);
+  const taskName = task ? task.title : taskId;
+  const whoLabel = assignee === 'joint' ? '共同' : (assignee === 'dad' ? '爸爸' : '妈妈');
 
   // 点击已选中的 → 取消选择
   if (current === assignee) {
@@ -945,6 +1101,7 @@ function setAssignee(taskId, assignee) {
       done: false,
       doneTime: null
     });
+    addLog('取消认领', taskName + ' · 取消' + whoLabel);
   } else {
     const isJoint = assignee === 'joint';
     setTaskState(taskId, null, {
@@ -955,6 +1112,7 @@ function setAssignee(taskId, assignee) {
       done: true,
       doneTime: new Date().toLocaleTimeString()
     });
+    addLog('认领打卡', taskName + ' · ' + whoLabel + '完成');
   }
   renderTaskList();
   renderCalendar();
@@ -982,9 +1140,13 @@ function setTimePeriod(period, el) {
 
 // 保存实际耗时
 function setActualTime(taskId, who, value) {
+  if (isCurrentDateReadOnly()) return;
   const min = Math.max(0, parseInt(value) || 0);
   const key = who === 'dad' ? 'actualDad' : 'actualMom';
+  const task = findTask(taskId);
+  const whoLabel = who === 'dad' ? '爸爸' : '妈妈';
   setTaskState(taskId, null, { [key]: min });
+  addLog('修改耗时', (task ? task.title : taskId) + ' · ' + whoLabel + min + '分钟');
   renderTimeStats();
 }
 
@@ -1414,46 +1576,43 @@ function renderTaskList() {
     const notesId = 'notes-' + task.id;
     const defaultMin = task.minutes ? task.minutes.dad : 30;
 
-    // 根据选中项决定显示哪个耗时输入
+    const readOnly = isCurrentDateReadOnly();
+
+    // 根据选中项决定显示哪个耗时输入（只读时不显示）
     let timeInputHtml = '';
-    if (assignee === 'dad') {
-      const val = ts.actualDad ?? defaultMin;
-      timeInputHtml = `
-        <label>👨 爸爸实际：</label>
-        <input type="number" min="0" value="${val}"
-          onchange="setActualTime('${task.id}','dad',this.value)" />
-        <span class="unit">分钟</span>`;
-    } else if (assignee === 'mom') {
-      const val = ts.actualMom ?? defaultMin;
-      timeInputHtml = `
-        <label>👩 妈妈实际：</label>
-        <input type="number" min="0" value="${val}"
-          onchange="setActualTime('${task.id}','mom',this.value)" />
-        <span class="unit">分钟</span>`;
-    } else if (assignee === 'joint') {
-      const dadVal = ts.actualDad ?? defaultMin;
-      const momVal = ts.actualMom ?? defaultMin;
-      timeInputHtml = `
-        <label>👨 爸爸：</label>
-        <input type="number" min="0" value="${dadVal}"
-          onchange="setActualTime('${task.id}','dad',this.value)" />
-        <span class="unit">分钟</span>
-        <label style="margin-left:8px">👩 妈妈：</label>
-        <input type="number" min="0" value="${momVal}"
-          onchange="setActualTime('${task.id}','mom',this.value)" />
-        <span class="unit">分钟</span>`;
+    if (!readOnly) {
+      if (assignee === 'dad') {
+        const val = ts.actualDad ?? defaultMin;
+        timeInputHtml = `
+          <label>👨 爸爸实际：</label>
+          <input type="number" min="0" value="${val}"
+            onchange="setActualTime('${task.id}','dad',this.value)" />
+          <span class="unit">分钟</span>`;
+      } else if (assignee === 'mom') {
+        const val = ts.actualMom ?? defaultMin;
+        timeInputHtml = `
+          <label>👩 妈妈实际：</label>
+          <input type="number" min="0" value="${val}"
+            onchange="setActualTime('${task.id}','mom',this.value)" />
+          <span class="unit">分钟</span>`;
+      } else if (assignee === 'joint') {
+        const dadVal = ts.actualDad ?? defaultMin;
+        const momVal = ts.actualMom ?? defaultMin;
+        timeInputHtml = `
+          <label>👨 爸爸：</label>
+          <input type="number" min="0" value="${dadVal}"
+            onchange="setActualTime('${task.id}','dad',this.value)" />
+          <span class="unit">分钟</span>
+          <label style="margin-left:8px">👩 妈妈：</label>
+          <input type="number" min="0" value="${momVal}"
+            onchange="setActualTime('${task.id}','mom',this.value)" />
+          <span class="unit">分钟</span>`;
+      }
     }
 
-    html += `
-      <div class="task-card${done ? ' checked' : ''}">
-        <div class="task-header">
-          <div class="task-title">${done ? '✅ ' : ''}${task.title}</div>
-          <div class="task-freq">${task.freq}</div>
-        </div>
-        <button class="toggle-notes" onclick="toggleNotes('${notesId}', this)">展开详情 ▼</button>
-        <div class="task-notes collapsed" id="${notesId}">${task.notes.replace(/\n/g, '<br>')}
-          ${task.timeEst ? '<br><b>⏱ 预计耗时：' + task.timeEst + '</b>' : ''}
-        </div>
+    const roClass = readOnly ? ' readonly' : '';
+    const roBadge = readOnly ? ' <span class="readonly-badge">🔒 只读</span>' : '';
+    const actionsHtml = readOnly ? '' : `
         <div class="task-actions">
           <button class="btn-claim dad-btn${assignee === 'dad' ? ' claimed' : ''}"
             onclick="setAssignee('${task.id}','dad')">👨 爸爸</button>
@@ -1461,7 +1620,19 @@ function renderTaskList() {
             onclick="setAssignee('${task.id}','mom')">👩 妈妈</button>
           <button class="btn-claim joint-btn${assignee === 'joint' ? ' done' : ''}"
             onclick="setAssignee('${task.id}','joint')">🤝 共同</button>
+        </div>`;
+
+    html += `
+      <div class="task-card${done ? ' checked' : ''}${roClass}">
+        <div class="task-header">
+          <div class="task-title">${done ? '✅ ' : ''}${task.title}${roBadge}</div>
+          <div class="task-freq">${task.freq}</div>
         </div>
+        <button class="toggle-notes" onclick="toggleNotes('${notesId}', this)">展开详情 ▼</button>
+        <div class="task-notes collapsed" id="${notesId}">${task.notes.replace(/\n/g, '<br>')}
+          ${task.timeEst ? '<br><b>⏱ 预计耗时：' + task.timeEst + '</b>' : ''}
+        </div>
+        ${actionsHtml}
         <div class="claim-info">${claimText}${ts.doneTime ? ' · 完成于 ' + ts.doneTime : ''}</div>
         ${timeInputHtml ? '<div class="actual-time-row">' + timeInputHtml + '</div>' : ''}
       </div>
@@ -1531,12 +1702,18 @@ function toggleRules(el) {
 function renderDeductsUI() {
   const deducts = loadDeducts();
   const dk = dateKey();
+  const readOnly = isCurrentDateReadOnly();
 
   // 更新日期标签
   const label = document.getElementById('deductDateLabel');
   if (label) {
-    label.textContent = `（${currentDate.getMonth()+1}月${currentDate.getDate()}日）`;
+    label.textContent = `（${currentDate.getMonth()+1}月${currentDate.getDate()}日）` + (readOnly ? ' 🔒只读' : '');
   }
+
+  // 隐藏/显示添加按钮
+  document.querySelectorAll('.add-deduct-btn').forEach(btn => {
+    btn.style.display = readOnly ? 'none' : 'inline-block';
+  });
 
   ['dad', 'mom'].forEach(who => {
     const items = deducts[who]?.[dk] || [];
@@ -1546,46 +1723,65 @@ function renderDeductsUI() {
       container.innerHTML = '<div style="font-size:12px;color:#ccc;padding:4px 0">暂无扣减项</div>';
       return;
     }
-    container.innerHTML = items.map((item, i) => `
-      <div class="deduct-item">
-        <input type="text" value="${escapeHtml2(item.name)}" placeholder="名称"
-          onchange="updateDeduct('${who}',${i},'name',this.value)" />
-        <input type="number" min="0" value="${item.minutes}" placeholder="分钟"
-          onchange="updateDeduct('${who}',${i},'minutes',parseInt(this.value)||0)" />
-        <span class="rule-unit">分钟</span>
-        <button class="del-btn" onclick="removeDeduct('${who}',${i})">✕</button>
-      </div>
-    `).join('');
+    if (readOnly) {
+      // 只读模式：纯文本显示
+      container.innerHTML = items.map(item => `
+        <div class="deduct-item" style="pointer-events:none;opacity:0.7">
+          <span style="flex:1;font-size:13px">${escapeHtml2(item.name) || '未命名'}</span>
+          <span style="font-weight:600">${item.minutes}分钟</span>
+        </div>
+      `).join('');
+    } else {
+      container.innerHTML = items.map((item, i) => `
+        <div class="deduct-item">
+          <input type="text" value="${escapeHtml2(item.name)}" placeholder="名称"
+            onchange="updateDeduct('${who}',${i},'name',this.value)" />
+          <input type="number" min="0" value="${item.minutes}" placeholder="分钟"
+            onchange="updateDeduct('${who}',${i},'minutes',parseInt(this.value)||0)" />
+          <span class="rule-unit">分钟</span>
+          <button class="del-btn" onclick="removeDeduct('${who}',${i})">✕</button>
+        </div>
+      `).join('');
+    }
   });
 }
 
 function addDeduct(who) {
+  if (isCurrentDateReadOnly()) return;
   const deducts = loadDeducts();
   const dk = dateKey();
   if (!deducts[who]) deducts[who] = {};
   if (!deducts[who][dk]) deducts[who][dk] = [];
   deducts[who][dk].push({ name: '', minutes: 30 });
   saveDeducts(deducts);
+  addLog('添加扣减', (who === 'dad' ? '爸爸' : '妈妈') + ' · 30分钟');
   renderDeductsUI();
   renderTimeStats();
 }
 
 function updateDeduct(who, index, field, value) {
+  if (isCurrentDateReadOnly()) return;
   const deducts = loadDeducts();
   const dk = dateKey();
   if (deducts[who]?.[dk]?.[index]) {
+    const old = deducts[who][dk][index][field];
     deducts[who][dk][index][field] = value;
     saveDeducts(deducts);
+    const label = field === 'name' ? value : (who === 'dad' ? '爸爸' : '妈妈') + ' · ' + value + '分钟';
+    addLog('修改扣减', label);
     renderTimeStats();
   }
 }
 
 function removeDeduct(who, index) {
+  if (isCurrentDateReadOnly()) return;
   const deducts = loadDeducts();
   const dk = dateKey();
   if (deducts[who]?.[dk]) {
+    const item = deducts[who][dk][index];
     deducts[who][dk].splice(index, 1);
     saveDeducts(deducts);
+    addLog('删除扣减', (who === 'dad' ? '爸爸' : '妈妈') + ' · ' + (item?.name || '未命名') + ' ' + (item?.minutes || 0) + '分钟');
     renderDeductsUI();
     renderTimeStats();
   }
@@ -1639,6 +1835,7 @@ async function fetchFromGitHub() {
       if (content.rules) { localStorage.setItem(RULES_KEY, JSON.stringify(content.rules)); }
       if (content.deducts) { localStorage.setItem(DEDUCTS_KEY, JSON.stringify(content.deducts)); }
       if (content.weekend) { localStorage.setItem(WEEKEND_KEY, JSON.stringify(content.weekend)); }
+      if (content.log) { localStorage.setItem(LOG_KEY, JSON.stringify(content.log)); }
       localStorage.setItem('lastSyncTime', String(ghTime));
       setSyncStatus('✅ 已从云端同步', 'ok');
     } else {
@@ -1693,6 +1890,7 @@ async function pushToGitHub() {
       rules: JSON.parse(localStorage.getItem(RULES_KEY) || 'null'),
       deducts: JSON.parse(localStorage.getItem(DEDUCTS_KEY) || '{"dad":{},"mom":{}}'),
       weekend: JSON.parse(localStorage.getItem(WEEKEND_KEY) || '{}'),
+      log: JSON.parse(localStorage.getItem(LOG_KEY) || '[]'),
       timestamp: now
     };
     const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
@@ -1729,6 +1927,7 @@ function renderAll() {
   initRulesUI();
 }
 
+setOperator(currentOperator); // 初始化操作人UI
 renderAll();  // 先用本地数据渲染（快速显示）
 fetchFromGitHub().then(() => renderAll());  // 再从 GitHub 拉取并刷新
 </script>
