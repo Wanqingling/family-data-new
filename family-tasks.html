@@ -535,10 +535,17 @@
     font-size: 15px;
   }
 
+  .deduct-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
   @media (max-width: 600px) {
     .container { padding: 10px; }
     .cal-day { padding: 5px 1px; font-size: 12px; }
     .task-card { padding: 12px; }
+    .deduct-grid { grid-template-columns: 1fr; }
   }
 
   /* 验证页面 */
@@ -704,7 +711,7 @@
   <!-- 自由时间扣减项（始终可见，跟随日期） -->
   <div class="rules-panel">
     <h3 style="cursor:default">📝 自由时间扣减项 <span id="deductDateLabel" style="font-size:12px;color:#4a6cf7"></span></h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="deduct-grid">
       <div class="deduct-section">
         <div style="font-size:12px;color:#1e40af;margin-bottom:4px;font-weight:600">👨 爸爸扣减项</div>
         <div id="dadDeducts"></div>
