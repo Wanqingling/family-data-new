@@ -146,8 +146,19 @@
     transition: all 0.2s;
   }
   .task-card.checked {
-    background: #f0fdf4;
     border-left: 4px solid #16a34a;
+  }
+  .task-card.checked-dad {
+    background: #dbeafe;
+    border-left: 4px solid #1e40af;
+  }
+  .task-card.checked-mom {
+    background: #fce7f3;
+    border-left: 4px solid #be185d;
+  }
+  .task-card.checked-joint {
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
   }
   .task-header {
     display: flex;
@@ -1618,6 +1629,7 @@ function renderTaskList() {
     }
 
     const roClass = readOnly ? ' readonly' : '';
+    const checkedClass = done ? (assignee ? ' checked checked-' + assignee : ' checked') : '';
     const roBadge = readOnly ? ' <span class="readonly-badge">🔒 只读</span>' : '';
     const actionsHtml = readOnly ? '' : `
         <div class="task-actions">
@@ -1630,7 +1642,7 @@ function renderTaskList() {
         </div>`;
 
     html += `
-      <div class="task-card${done ? ' checked' : ''}${roClass}">
+      <div class="task-card${checkedClass}${roClass}">
         <div class="task-header">
           <div class="task-title">${done ? '✅ ' : ''}${task.title}${roBadge}</div>
           <div class="task-freq">${task.freq}</div>
