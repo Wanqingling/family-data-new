@@ -1025,7 +1025,7 @@ async function doRegister() {
     currentTenant = { phone, phoneHash, memberName, role, familyKey, childName, childId6, familyRoster: roster };
     currentOperator = role; // 默认操作人 = 自己的角色
     localStorage.setItem('ft_last_phone', phoneHash);
-    localStorage.setItem('ft_session', JSON.stringify({ phoneHash, memberName, role, familyKey, childName, childId6 }));
+    localStorage.setItem('ft_session', JSON.stringify({ phoneHash, memberName, role, familyKey, childName, childId6, roster }));
     enterApp();
   } catch(e) {
     errEl.textContent = '注册失败: ' + (e.message || '网络错误');
@@ -1062,7 +1062,7 @@ async function doLogin() {
     currentTenant = { phone, phoneHash, memberName: user.memberName, role: user.role, familyKey: user.familyKey, childName: user.childName, childId6: user.childId6, familyRoster: roster };
     currentOperator = user.role;
     localStorage.setItem('ft_last_phone', phoneHash);
-    localStorage.setItem('ft_session', JSON.stringify({ phoneHash, memberName: user.memberName, role: user.role, familyKey: user.familyKey, childName: user.childName, childId6: user.childId6 }));
+    localStorage.setItem('ft_session', JSON.stringify({ phoneHash, memberName: user.memberName, role: user.role, familyKey: user.familyKey, childName: user.childName, childId6: user.childId6, roster }));
     enterApp();
   } catch(e) {
     errEl.textContent = '登录失败: ' + (e.message || '网络错误');
@@ -1127,6 +1127,8 @@ function updateMemberLabels() {
     const user = cachedUsers[session.phoneHash];
     if (user) {
       roster = getFamilyRoster(user.familyKey);
+      // 缓存完整 roster
+      localStorage.setItem('ft_session', JSON.stringify({ ...session, roster }));
       currentTenant = { phone: user.phone, phoneHash: session.phoneHash, memberName: user.memberName, role: user.role, familyKey: user.familyKey, childName: user.childName, childId6: user.childId6, familyRoster: roster };
       currentOperator = user.role;
       enterApp();
@@ -1134,8 +1136,8 @@ function updateMemberLabels() {
     }
   } catch(e) { console.warn('GitHub fetch failed, using cached session'); }
 
-  // GitHub 失败时用本地缓存兜底
-  roster = [{ phoneHash: session.phoneHash, memberName: session.memberName, role: session.role }];
+  // GitHub 失败时用本地缓存兜底（包含完整 roster）
+  roster = session.roster || [{ phoneHash: session.phoneHash, memberName: session.memberName, role: session.role }];
   currentTenant = { phoneHash: session.phoneHash, memberName: session.memberName, role: session.role, familyKey: session.familyKey, childName: session.childName, childId6: session.childId6, familyRoster: roster };
   currentOperator = session.role;
   enterApp();
