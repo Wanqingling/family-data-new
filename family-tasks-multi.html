@@ -1,0 +1,2663 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家庭任务认领打卡表</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    min-height: 100vh;
+    color: #333;
+  }
+  .container { max-width: 900px; margin: 0 auto; padding: 16px; }
+  h1 { text-align: center; padding: 20px 0 10px; font-size: 26px; color: #4a2c0a; }
+
+  /* 日历选择器 */
+  .cal-wrap {
+    background: #fff;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    overflow: hidden;
+  }
+  .cal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .cal-header-date { font-size: 17px; font-weight: 700; color: #4a2c0a; }
+  .cal-header-weekday { font-size: 13px; color: #888; }
+  .cal-toggle { margin-left: auto; font-size: 12px; color: #bbb; transition: transform 0.2s; }
+  .cal-wrap.open .cal-toggle { transform: rotate(180deg); }
+  .cal-body { display: none; border-top: 1px solid #f0f0f0; padding: 10px 12px 12px; }
+  .cal-wrap.open .cal-body { display: block; }
+  .cal-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .cal-nav button {
+    background: #f5f5f5;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .cal-nav button:hover { background: #e8e8e8; }
+  .cal-nav #calMonthLabel { font-size: 15px; font-weight: 600; color: #4a2c0a; min-width: 100px; text-align: center; }
+  .cal-today-btn { font-size: 12px !important; margin-left: auto; color: #4a6cf7; }
+  .cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 4px;
+  }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  .cal-day {
+    text-align: center;
+    padding: 6px 2px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+  }
+  .cal-day:hover { background: #f5f0eb; }
+  .cal-day.empty { cursor: default; }
+  .cal-day.empty:hover { background: none; }
+  .cal-day.today { font-weight: 700; color: #4a6cf7; }
+  .cal-day.selected { background: #4a2c0a; color: #fff !important; }
+  .cal-day.selected .cal-check { color: #fff; }
+  .cal-day.future { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
+  .cal-check {
+    font-size: 9px;
+    color: #16a34a;
+    display: block;
+    line-height: 1;
+    margin-top: 1px;
+  }
+
+  /* Tab 切换 */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+    margin-top: 16px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #888;
+    transition: all 0.2s;
+  }
+  .tab.active { background: #4a2c0a; color: #fff; }
+  .tab:hover:not(.active) { background: #f5f0eb; }
+
+  /* 统计条 */
+  .stats-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .stat-pill {
+    flex: 1;
+    min-width: 120px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .stat-pill .s-label { font-size: 12px; color: #999; }
+  .stat-pill .s-value { font-size: 22px; font-weight: 700; color: #4a2c0a; margin-top: 2px; }
+  .stat-pill .s-value.done { color: #16a34a; }
+
+  /* 任务卡片 */
+  .task-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    transition: all 0.2s;
+  }
+  .task-card.checked {
+    border-left: 4px solid #16a34a;
+  }
+  .task-card.checked-dad {
+    background: #dbeafe;
+    border-left: 4px solid #1e40af;
+  }
+  .task-card.checked-mom {
+    background: #fce7f3;
+    border-left: 4px solid #be185d;
+  }
+  .task-card.checked-joint {
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+  }
+  .task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .task-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a1a;
+    flex: 1;
+  }
+  .task-freq {
+    font-size: 11px;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .task-notes {
+    font-size: 12px;
+    color: #666;
+    margin-top: 8px;
+    line-height: 1.7;
+    padding-left: 12px;
+    border-left: 2px solid #eee;
+  }
+  .task-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .btn-claim {
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+  .btn-claim.dad-btn { background: #dbeafe; color: #1e40af; }
+  .btn-claim.dad-btn.claimed { background: #1e40af; color: #fff; }
+  .btn-claim.mom-btn { background: #fce7f3; color: #be185d; }
+  .btn-claim.mom-btn.claimed { background: #be185d; color: #fff; }
+  .btn-claim.joint-btn {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  .btn-claim.joint-btn.done { background: #f59e0b; color: #fff; }
+  .btn-claim:hover { opacity: 0.85; transform: scale(1.02); }
+
+  /* 实际耗时输入 */
+  .actual-time-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #e5e7eb;
+  }
+  .actual-time-row label { font-size: 12px; color: #888; white-space: nowrap; }
+  .actual-time-row input {
+    width: 60px;
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+  }
+  .actual-time-row input:focus { border-color: #4a6cf7; }
+  .actual-time-row .unit { font-size: 12px; color: #999; }
+
+  /* 耗时统计面板 */
+  .time-stats {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .time-stats h3 { font-size: 14px; color: #666; margin-bottom: 12px; }
+  .time-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .time-card {
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+  }
+  .time-card.dad-card { background: #eff6ff; }
+  .time-card.mom-card { background: #fdf2f8; }
+  .time-card .tc-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .time-card.dad-card .tc-name { color: #1e40af; }
+  .time-card.mom-card .tc-name { color: #be185d; }
+  .time-card .tc-hours { font-size: 24px; font-weight: 700; }
+  .time-card .tc-label { font-size: 11px; color: #999; margin-top: 2px; }
+  .time-period-toggle {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .time-period-toggle span {
+    flex: 1;
+    text-align: center;
+    padding: 6px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #888;
+    font-weight: 600;
+  }
+  .time-period-toggle span.active { background: #fff; color: #333; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+  /* 时长差与自由时间 */
+  .diff-section {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #eee;
+  }
+  .diff-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .diff-card {
+    flex: 1;
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .diff-card.positive { background: #ecfdf5; }
+  .diff-card.negative { background: #fef2f2; }
+  .diff-card.neutral { background: #f9fafb; }
+  .diff-card .dc-label { font-size: 12px; color: #888; }
+  .diff-card .dc-value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .diff-card.positive .dc-value { color: #16a34a; }
+  .diff-card.negative .dc-value { color: #ef4444; }
+  .diff-card.neutral .dc-value { color: #999; }
+
+  .free-time-box {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    color: #fff;
+  }
+  .free-time-box .ft-label { font-size: 12px; opacity: 0.85; }
+  .free-time-box .ft-name { font-size: 16px; font-weight: 700; margin-top: 2px; }
+  .free-time-box .ft-value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+  .free-time-box .ft-note { font-size: 11px; opacity: 0.7; margin-top: 4px; }
+  .no-free-box {
+    background: #f9fafb;
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+  }
+
+  /* 规则设定面板 */
+  .sync-status {
+    font-size: 12px; padding: 4px 12px; border-radius: 20px; display: inline-block; margin-bottom: 8px;
+  }
+  .sync-status.ok { color: #16a34a; background: #dcfce7; }
+  .sync-status.loading { color: #ca8a04; background: #fef9c3; }
+  .sync-status.error { color: #dc2626; background: #fee2e2; }
+
+  .rules-panel {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .rules-panel h3 { font-size: 14px; color: #666; margin-bottom: 10px; cursor: pointer; }
+  .rules-panel h3:hover { color: #333; }
+  .rules-body { display: none; }
+  .rules-body.open { display: block; }
+  .rule-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  .rule-row label { color: #666; min-width: 80px; }
+  .rule-row input {
+    width: 55px;
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+  }
+  .rule-row input:focus { border-color: #4a6cf7; }
+  .rule-row .rule-unit { color: #999; font-size: 12px; }
+  .rule-divider { border-top: 1px solid #f0f0f0; margin: 10px 0; }
+
+  /* 扣减项 */
+  .deduct-section { margin-top: 10px; }
+  .deduct-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .deduct-item input[type="text"] {
+    flex: 1;
+    padding: 5px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    min-width: 80px;
+  }
+  .deduct-item input[type="number"] {
+    width: 50px;
+    padding: 5px 4px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+  }
+  .deduct-item .del-btn {
+    background: none;
+    border: none;
+    color: #ff3b30;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 4px;
+  }
+  .add-deduct-btn {
+    background: #f0f0f0;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #666;
+  }
+  .add-deduct-btn:hover { background: #e0e0e0; }
+
+  /* 剩余自由时间明细 */
+  .free-detail {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+  }
+  .free-detail h4 { font-size: 13px; color: #666; margin-bottom: 8px; }
+  .free-breakdown {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .fb-card {
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 12px;
+  }
+  .fb-card.dad-fb { background: #eff6ff; }
+  .fb-card.mom-fb { background: #fdf2f8; }
+  .fb-card .fb-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+  .fb-card.dad-fb .fb-title { color: #1e40af; }
+  .fb-card.mom-fb .fb-title { color: #be185d; }
+  .fb-card .fb-line { display: flex; justify-content: space-between; margin-bottom: 3px; color: #555; }
+  .fb-card .fb-total { border-top: 1px solid rgba(0,0,0,0.1); padding-top: 4px; margin-top: 4px; font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; }
+
+  .claim-info {
+    font-size: 11px;
+    color: #999;
+    margin-top: 6px;
+  }
+
+  /* 折叠按钮 */
+  .toggle-notes {
+    background: none;
+    border: none;
+    color: #4a6cf7;
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 6px;
+    padding: 2px 0;
+  }
+  .task-notes.collapsed { display: none; }
+
+  /* 操作人选择 */
+  .operator-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 8px 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    font-size: 13px;
+  }
+  .operator-bar .op-label { color: #888; }
+  .op-btn {
+    padding: 5px 14px;
+    border-radius: 16px;
+    border: 2px solid transparent;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .op-btn.dad { background: #dbeafe; color: #1e40af; }
+  .op-btn.dad.active { background: #1e40af; color: #fff; }
+  .op-btn.mom { background: #fce7f3; color: #be185d; }
+  .op-btn.mom.active { background: #be185d; color: #fff; }
+  .op-btn.log { margin-left: auto; background: #f5f5f5; color: #666; font-weight: 400; font-size: 12px; }
+
+  /* 只读标记 */
+  .readonly-badge {
+    display: inline-block;
+    font-size: 11px;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+  }
+  .task-card.readonly {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  .task-card.readonly .toggle-notes { pointer-events: auto; }
+  .cal-day.readonly { opacity: 0.4; }
+  .cal-day.readonly::after {
+    content: '🔒';
+    font-size: 7px;
+    display: block;
+    line-height: 1;
+  }
+
+  /* 修改记录弹窗 */
+  .log-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4); z-index: 9998;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .log-box {
+    background: #fff; border-radius: 16px; padding: 20px; max-width: 500px; width: 92%;
+    max-height: 70vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  }
+  .log-box h3 { font-size: 16px; margin-bottom: 12px; }
+  .log-entry { font-size: 12px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; color: #555; line-height: 1.6; }
+  .log-entry .log-time { color: #999; }
+  .log-entry .log-op { font-weight: 600; }
+  .log-entry .log-op.dad { color: #1e40af; }
+  .log-entry .log-op.mom { color: #be185d; }
+  .log-close { background: #f5f5f5; border: none; padding: 8px 20px; border-radius: 8px; margin-top: 12px; cursor: pointer; font-size: 13px; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #bbb;
+    font-size: 15px;
+  }
+
+  .deduct-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  @media (max-width: 600px) {
+    .container { padding: 10px; }
+    .cal-day { padding: 5px 1px; font-size: 12px; }
+    .task-card { padding: 12px; }
+    .deduct-grid { grid-template-columns: 1fr; }
+  }
+
+  /* 验证页面 */
+  .auth-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    display: flex; align-items: center; justify-content: center; z-index: 9999;
+    padding: 16px;
+  }
+  .auth-box {
+    background: #fff; border-radius: 20px; padding: 36px 28px 28px; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 400px; width: 100%;
+  }
+  .auth-box h2 { margin: 0 0 6px; font-size: 22px; color: #1a1a2e; }
+  .auth-box .auth-subtitle { color: #999; font-size: 13px; margin: 0 0 20px; }
+
+  /* 表单输入框 */
+  .auth-field {
+    width: 100%; padding: 12px 14px; font-size: 15px; text-align: left;
+    border: 1.5px solid #e2e8f0; border-radius: 10px; outline: none;
+    letter-spacing: 0; box-sizing: border-box; background: #f8fafc;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .auth-field:focus { border-color: #4a6cf7; background: #fff; }
+  .auth-field + .auth-field { margin-top: 10px; }
+
+  /* 分区卡片 */
+  .auth-section {
+    background: #f0f4ff; border-radius: 12px; padding: 14px; margin-top: 14px;
+    border: 1px solid #dbe4ff;
+  }
+  .auth-section-title {
+    font-size: 12px; color: #4a6cf7; font-weight: 700; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .auth-section .auth-field { background: #fff; }
+
+  /* 角色选择 */
+  .auth-role-group { margin-top: 14px; text-align: left; }
+  .auth-role-group .role-label { font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 8px; }
+  .auth-role-options { display: flex; gap: 10px; }
+  .auth-role-option {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+    font-size: 13px; color: #555; cursor: pointer; background: #f8fafc;
+    transition: all 0.2s;
+  }
+  .auth-role-option:has(input:checked) {
+    border-color: #4a6cf7; background: #eef2ff; color: #4a6cf7; font-weight: 600;
+  }
+  .auth-role-option input[type="radio"] { display: none; }
+
+  /* 按钮 */
+  .auth-btn {
+    width: 100%; padding: 13px; margin-top: 18px; font-size: 15px; font-weight: 700;
+    background: #4a6cf7; color: #fff; border: none; border-radius: 12px; cursor: pointer;
+    letter-spacing: 2px; transition: background 0.2s;
+  }
+  .auth-btn:active { background: #3a5ce5; }
+
+  /* 错误/切换 */
+  .auth-error { color: #e53e3e; font-size: 13px; margin-top: 10px; display: none; }
+  .auth-switch { margin-top: 16px; font-size: 13px; color: #94a3b8; }
+  .auth-switch a { color: #4a6cf7; cursor: pointer; font-weight: 600; }
+
+  /* 周末确认面板 */
+  .weekend-panel {
+    background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px;
+    padding: 20px; margin-bottom: 16px; border: 2px solid #f59e0b;
+  }
+  .weekend-panel h3 { margin: 0 0 4px; font-size: 16px; }
+  .weekend-panel .wk-sub { font-size: 12px; color: #92400e; margin-bottom: 16px; }
+  .wk-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    background: #fff; padding: 12px; border-radius: 10px;
+  }
+  .wk-row .wk-label { font-weight: 600; font-size: 14px; min-width: 50px; }
+  .wk-row select {
+    flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;
+    background: #fff;
+  }
+  .wk-row .wk-btn {
+    padding: 8px 16px; border: none; border-radius: 8px; font-size: 13px;
+    font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .wk-btn.confirm { background: #16a34a; color: #fff; }
+  .wk-btn.cancel { background: #ef4444; color: #fff; margin-left: 4px; }
+  .wk-locked {
+    background: #dcfce7 !important; border: 1px solid #86efac;
+  }
+  .wk-locked .wk-label { color: #166534; }
+  .wk-status { font-size: 12px; margin-top: 2px; }
+  .wk-status.ok { color: #16a34a; }
+  .wk-status.warn { color: #ef4444; }
+
+  /* 任务管理按钮 */
+  .task-menu-btn {
+    background: none; border: none; font-size: 18px; color: #999; cursor: pointer;
+    padding: 2px 6px; border-radius: 4px; line-height: 1;
+  }
+  .task-menu-btn:hover { background: #f1f5f9; color: #333; }
+  .task-title-row { display: flex; align-items: center; gap: 6px; }
+  .task-title-row .task-title { flex: 1; }
+
+  /* 管理菜单浮层 */
+  .task-context-menu {
+    position: fixed; background: #fff; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.15);
+    padding: 6px 0; z-index: 9999; min-width: 140px;
+  }
+  .task-context-menu .cm-item {
+    padding: 10px 16px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .task-context-menu .cm-item:hover { background: #f1f5f9; }
+  .task-context-menu .cm-item.danger { color: #ef4444; }
+  .task-context-menu .cm-divider { height: 1px; background: #eee; margin: 4px 0; }
+  .cm-overlay { position: fixed; inset: 0; z-index: 9998; }
+
+  /* 任务表单弹窗 */
+  .task-form-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10000;
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .task-form-box {
+    background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 420px;
+    max-height: 85vh; overflow-y: auto;
+  }
+  .task-form-box h3 { margin: 0 0 16px; font-size: 17px; }
+  .task-form-box label { display: block; font-size: 13px; color: #555; margin: 10px 0 4px; font-weight: 600; }
+  .task-form-box input, .task-form-box select, .task-form-box textarea {
+    width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px;
+    font-size: 14px; box-sizing: border-box;
+  }
+  .task-form-box textarea { resize: vertical; min-height: 60px; }
+  .task-form-box .form-row { display: flex; gap: 8px; }
+  .task-form-box .form-row > div { flex: 1; }
+  .task-form-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+  .task-form-actions button {
+    padding: 8px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none;
+  }
+  .task-form-actions .btn-cancel { background: #f1f5f9; color: #555; }
+  .task-form-actions .btn-save { background: #4a6cf7; color: #fff; }
+
+  /* 快捷模板 */
+  .tpl-row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .tpl-btn {
+    padding: 4px 10px; border: 1px solid #ddd; border-radius: 6px; background: #f8f9fa;
+    font-size: 12px; cursor: pointer; color: #555;
+  }
+  .tpl-btn:hover { background: #e2e8f0; }
+
+  /* 新增任务按钮 */
+  .add-task-btn {
+    display: block; width: 100%; padding: 14px; margin-top: 8px; border: 2px dashed #cbd5e1;
+    border-radius: 10px; background: transparent; color: #94a3b8; font-size: 14px;
+    cursor: pointer; text-align: center;
+  }
+  .add-task-btn:hover { border-color: #4a6cf7; color: #4a6cf7; background: #f0f4ff; }
+
+  /* 确认弹窗 */
+  .confirm-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10001;
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .confirm-box {
+    background: #fff; border-radius: 14px; padding: 24px; max-width: 340px; width: 100%; text-align: center;
+  }
+  .confirm-box h4 { margin: 0 0 8px; font-size: 16px; }
+  .confirm-box p { font-size: 13px; color: #666; margin: 0 0 16px; line-height: 1.6; }
+  .confirm-actions { display: flex; gap: 8px; justify-content: center; }
+  .confirm-actions button {
+    padding: 8px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none;
+  }
+  .confirm-actions .btn-no { background: #f1f5f9; color: #555; }
+  .confirm-actions .btn-yes { background: #ef4444; color: #fff; }
+
+  /* 停用标记 */
+  .task-card.retired { opacity: 0.5; }
+  .retired-badge {
+    display: inline-block; background: #fef3c7; color: #b45309; font-size: 11px;
+    padding: 1px 6px; border-radius: 4px; margin-left: 6px;
+  }
+</style>
+</head>
+<body>
+
+<!-- 登录/注册页面 -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-box">
+    <h2>🏠 家庭任务管理</h2>
+    <p class="auth-subtitle" id="authSubtitle">登录您的家庭账户</p>
+
+    <!-- 登录表单 -->
+    <div id="loginForm">
+      <input class="auth-field" type="tel" id="loginPhone" maxlength="11" inputmode="numeric" placeholder="手机号" />
+      <input class="auth-field" type="password" id="loginPwd" maxlength="20" placeholder="密码"
+        onkeydown="if(event.key==='Enter')doLogin()" />
+      <div class="auth-section">
+        <div class="auth-section-title">👶 关联小孩信息</div>
+        <input class="auth-field" type="text" id="loginChildId6" maxlength="6" inputmode="text" placeholder="小孩身份证后6位" />
+        <input class="auth-field" type="text" id="loginChildName" maxlength="10" placeholder="小孩名字简称" style="margin-top:8px" />
+      </div>
+      <button class="auth-btn" onclick="doLogin()">登 录</button>
+      <div class="auth-error" id="loginError"></div>
+      <div class="auth-switch">还没有账户？<a onclick="showRegister()">立即注册</a></div>
+    </div>
+
+    <!-- 注册表单 -->
+    <div id="registerForm" style="display:none">
+      <input class="auth-field" type="tel" id="regPhone" maxlength="11" inputmode="numeric" placeholder="手机号" />
+      <input class="auth-field" type="password" id="regPwd" maxlength="20" placeholder="设置密码（至少4位）" />
+      <input class="auth-field" type="text" id="regMemberName" maxlength="10" placeholder="您的称呼（如：爸爸、妈妈、爷爷）" />
+
+      <div class="auth-section">
+        <div class="auth-section-title">👶 关联小孩（同一家人的数据隔离依据）</div>
+        <input class="auth-field" type="text" id="regChildId6" maxlength="6" inputmode="text" placeholder="小孩身份证后6位" />
+        <input class="auth-field" type="text" id="regChildName" maxlength="10" placeholder="小孩名字简称（如：小明）" style="margin-top:8px" />
+      </div>
+
+      <div class="auth-role-group">
+        <div class="role-label">您在家庭中的角色</div>
+        <div class="auth-role-options">
+          <label class="auth-role-option">
+            <input type="radio" name="regRole" value="member1" checked /> 成员1（爸爸）
+          </label>
+          <label class="auth-role-option">
+            <input type="radio" name="regRole" value="member2" /> 成员2（妈妈）
+          </label>
+        </div>
+      </div>
+
+      <button class="auth-btn" onclick="doRegister()">注 册</button>
+      <div class="auth-error" id="regError"></div>
+      <div class="auth-switch">已有账户？<a onclick="showLogin()">返回登录</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- 主页面（验证后才显示） -->
+<div class="container" id="mainContainer" style="display:none">
+  <h1>🏠 家庭任务认领打卡</h1>
+  <div style="text-align:center;margin-bottom:12px"><span class="sync-status" id="syncStatus">⏳ 连接中...</span></div>
+
+  <!-- 兑换规则（最前面） -->
+  <div class="rules-panel">
+    <h3 onclick="toggleRules(this)">⚙️ 兑换规则设定 <span style="font-size:11px;color:#bbb">（点击展开）</span></h3>
+    <div class="rules-body" id="rulesBody">
+      <div class="rule-row">
+        <label id="ruleDadLabel">👨 成员1做家务</label>
+        <input type="number" id="ruleDadWork" min="1" value="1" onchange="saveRules()" />
+        <span class="rule-unit">小时 → 兑换</span>
+        <input type="number" id="ruleDadFree" min="0" value="1" onchange="saveRules()" />
+        <span class="rule-unit">小时自由时间</span>
+      </div>
+      <div class="rule-row">
+        <label id="ruleMomLabel">👩 成员2做家务</label>
+        <input type="number" id="ruleMomWork" min="1" value="1" onchange="saveRules()" />
+        <span class="rule-unit">小时 → 可要求爸爸陪伴</span>
+        <input type="number" id="ruleMomCompanion" min="0" value="1" onchange="saveRules()" />
+        <span class="rule-unit">小时</span>
+      </div>
+      <div class="rule-divider"></div>
+      <div style="font-size:12px;color:#888;line-height:1.8">
+        💡 <b>家务兑换规则：</b><br>
+        · 爸爸的家务时长按比例兑换为自由时间；<br>
+        · 妈妈的家务时长按比例可要求爸爸在自由时间之外陪伴。<br><br>
+        🏖 <b>家庭陪伴与违约规则：</b><br>
+        · <b>周末底线：</b>每周末，父母双方需保证一家三口的"高质量陪伴时间"底线为 <b>2 小时</b>（如逛公园、看电影、亲子游戏等）。<br>
+        · <b>双倍扣罚机制：</b>若因非工作或非不可抗力因素，导致周末陪伴时间未达到 2 小时，欠下的时间将从对应角色的自由时间剩余账户中扣除<b>双倍时间</b>（即欠 1 小时陪伴，需扣除 2 小时自由时间）。未确认参与者，直接扣除 <b>4 小时</b>自由时间。
+      </div>
+    </div>
+  </div>
+
+  <!-- 日历选择器 -->
+  <div class="cal-wrap">
+    <div class="cal-header" onclick="toggleCalendar()">
+      <span id="calHeaderDate" class="cal-header-date"></span>
+      <span id="calHeaderWeekday" class="cal-header-weekday"></span>
+      <span class="cal-toggle">▼</span>
+    </div>
+    <div class="cal-body" id="calBody">
+      <div class="cal-nav">
+        <button onclick="calNavMonth(-1)">◀</button>
+        <span id="calMonthLabel"></span>
+        <button onclick="calNavMonth(1)">▶</button>
+        <button onclick="calGoToday()" class="cal-today-btn">今天</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+  </div>
+
+  <!-- 操作人（自动识别） -->
+  <div class="operator-bar">
+    <span class="op-label">当前：</span>
+    <span id="opDisplay" class="op-btn active" style="cursor:default"></span>
+    <button class="op-btn log" onclick="showChangeLog()">📋 记录</button>
+    <button class="op-btn log" onclick="logout()" style="color:#ef4444">切换</button>
+  </div>
+
+  <!-- 耗时统计 -->
+  <div class="time-stats">
+    <h3>⏱ 耗时统计</h3>
+    <div class="time-period-toggle">
+      <span class="active" onclick="setTimePeriod('daily', this)">📅 当日</span>
+      <span onclick="setTimePeriod('weekly', this)">📆 本周</span>
+      <span onclick="setTimePeriod('cumulative', this)">📈 累计</span>
+    </div>
+    <div class="time-grid">
+      <div class="time-card dad-card">
+        <div class="tc-name" id="statsDadLabel">👨 爸爸</div>
+        <div class="tc-hours" id="dadHours">0分钟</div>
+        <div class="tc-label" id="dadTasks">完成 0 项</div>
+      </div>
+      <div class="time-card mom-card">
+        <div class="tc-name" id="statsMomLabel">👩 妈妈</div>
+        <div class="tc-hours" id="momHours">0分钟</div>
+        <div class="tc-label" id="momTasks">完成 0 项</div>
+      </div>
+    </div>
+    <!-- 时长差与自由时间 -->
+    <div class="diff-section" id="diffSection"></div>
+    <!-- 自由时间明细 -->
+    <div class="free-detail" id="freeDetail"></div>
+  </div>
+
+  <!-- 自由时间扣减项（始终可见，跟随日期） -->
+  <div class="rules-panel">
+    <h3 style="cursor:default">📝 自由时间扣减项 <span id="deductDateLabel" style="font-size:12px;color:#4a6cf7"></span></h3>
+    <div class="deduct-grid">
+      <div class="deduct-section">
+        <div style="font-size:12px;color:#1e40af;margin-bottom:4px;font-weight:600" id="deductDadLabel">👨 爸爸扣减项</div>
+        <div id="dadDeducts"></div>
+        <button class="add-deduct-btn" onclick="addDeduct('dad')">+ 添加</button>
+      </div>
+      <div class="deduct-section">
+        <div style="font-size:12px;color:#be185d;margin-bottom:4px;font-weight:600" id="deductMomLabel">👩 妈妈扣减项</div>
+        <div id="momDeducts"></div>
+        <button class="add-deduct-btn" onclick="addDeduct('mom')">+ 添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('daily', this)">📋 每日必办</div>
+    <div class="tab" onclick="switchTab('weekly', this)">📅 每周任务</div>
+    <div class="tab" onclick="switchTab('shared', this)">🤝 共同陪伴</div>
+    <div class="tab" onclick="switchTab('weekend', this)">🏖 周末陪伴</div>
+  </div>
+
+  <!-- 统计 -->
+  <div class="stats-bar">
+    <div class="stat-pill">
+      <div class="s-label">待完成</div>
+      <div class="s-value" id="statPending">0</div>
+    </div>
+    <div class="stat-pill">
+      <div class="s-label">已完成</div>
+      <div class="s-value done" id="statDone">0</div>
+    </div>
+    <div class="stat-pill">
+      <div class="s-label">完成率</div>
+      <div class="s-value" id="statRate">0%</div>
+    </div>
+  </div>
+
+  <!-- 任务列表 -->
+  <div id="taskList"></div>
+</div>
+
+<script>
+// ===== 多租户登录系统（多成员+小孩隔离） =====
+const USERS_PATH = 'users.json';
+let currentTenant = null; // { phone, phoneHash, memberName, role, familyKey, childName, childId6, familyRoster }
+let currentOperator = 'member1'; // 'member1' | 'member2'
+let cachedUsers = {}; // 缓存的用户列表
+
+// 生成用户ID（手机号哈希）
+function makePhoneHash(phone) {
+  const last4 = phone.slice(-4);
+  let h = 0;
+  for (let i = 0; i < phone.length; i++) h = ((h << 5) - h + phone.charCodeAt(i)) | 0;
+  return last4 + '_' + Math.abs(h).toString(36).slice(0, 6);
+}
+
+// 生成家庭key（小孩身份证后6位 + 名字简称哈希）
+function makeFamilyKey(childId6, childName) {
+  let h = 0;
+  const s = childId6 + '_' + childName;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return childId6 + '_' + Math.abs(h).toString(36).slice(0, 6);
+}
+
+// SHA-256 哈希密码
+async function hashPwd(pwd) {
+  const buf = new TextEncoder().encode(pwd + '_ft_salt_2024');
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// 租户前缀的 localStorage key（基于 familyKey）
+function tKey(key) {
+  return currentTenant ? 'ft_' + currentTenant.familyKey + '_' + key : key;
+}
+
+// 拉取 users.json
+async function fetchUsers() {
+  try {
+    const d = await ghRequest(GH.apiBase() + USERS_PATH + '?ref=' + GH.branch);
+    const b64 = atob(d.content);
+    const bytes = new Uint8Array(b64.length);
+    for (let i = 0; i < b64.length; i++) bytes[i] = b64.charCodeAt(i);
+    cachedUsers = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+    ghUsersSha = d.sha;
+    return cachedUsers;
+  } catch(e) {
+    console.warn('users.json not found, using empty');
+    cachedUsers = {};
+    return cachedUsers;
+  }
+}
+
+// 获取同家庭的所有成员
+function getFamilyRoster(familyKey) {
+  const roster = [];
+  Object.entries(cachedUsers).forEach(([ph, u]) => {
+    if (u.familyKey === familyKey) {
+      roster.push({ phoneHash: ph, memberName: u.memberName, role: u.role });
+    }
+  });
+  return roster;
+}
+
+// 显示/隐藏登录/注册
+function showRegister() {
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('registerForm').style.display = 'block';
+  document.getElementById('authSubtitle').textContent = '创建新的家庭成员账户';
+}
+function showLogin() {
+  document.getElementById('registerForm').style.display = 'none';
+  document.getElementById('loginForm').style.display = 'block';
+  document.getElementById('authSubtitle').textContent = '登录您的家庭账户';
+}
+
+// 注册
+async function doRegister() {
+  const phone = document.getElementById('regPhone').value.trim();
+  const pwd = document.getElementById('regPwd').value;
+  const memberName = document.getElementById('regMemberName').value.trim();
+  const childId6 = document.getElementById('regChildId6').value.trim();
+  const childName = document.getElementById('regChildName').value.trim();
+  const role = document.querySelector('input[name="regRole"]:checked')?.value || 'member1';
+  const errEl = document.getElementById('regError');
+  errEl.style.display = 'none';
+
+  if (!/^1\d{10}$/.test(phone)) { errEl.textContent = '请输入正确的11位手机号'; errEl.style.display = 'block'; return; }
+  if (pwd.length < 4) { errEl.textContent = '密码至少4位'; errEl.style.display = 'block'; return; }
+  if (!memberName) { errEl.textContent = '请填写您的称呼'; errEl.style.display = 'block'; return; }
+  if (!/^[A-Za-z0-9]{6}$/.test(childId6)) { errEl.textContent = '请输入正确的身份证后6位'; errEl.style.display = 'block'; return; }
+  if (!childName) { errEl.textContent = '请填写小孩名字简称'; errEl.style.display = 'block'; return; }
+
+  try {
+    const pwdHash = await hashPwd(pwd);
+    const phoneHash = makePhoneHash(phone);
+    const familyKey = makeFamilyKey(childId6, childName);
+
+    await fetchUsers();
+    if (cachedUsers[phoneHash]) { errEl.textContent = '该手机号已注册'; errEl.style.display = 'block'; return; }
+
+    cachedUsers[phoneHash] = { phone, pwdHash, memberName, role, familyKey, childId6, childName, created: Date.now() };
+    await ghPutFile(USERS_PATH, cachedUsers, ghUsersSha, '注册新成员: ' + memberName);
+
+    const roster = getFamilyRoster(familyKey);
+    currentTenant = { phone, phoneHash, memberName, role, familyKey, childName, childId6, familyRoster: roster };
+    currentOperator = role; // 默认操作人 = 自己的角色
+    localStorage.setItem('ft_last_phone', phoneHash);
+    localStorage.setItem('ft_session', JSON.stringify({ phoneHash, memberName, role, familyKey, childName, childId6 }));
+    enterApp();
+  } catch(e) {
+    errEl.textContent = '注册失败: ' + (e.message || '网络错误');
+    errEl.style.display = 'block';
+  }
+}
+
+// 登录
+async function doLogin() {
+  const phone = document.getElementById('loginPhone').value.trim();
+  const pwd = document.getElementById('loginPwd').value;
+  const childId6 = document.getElementById('loginChildId6').value.trim();
+  const childName = document.getElementById('loginChildName').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+
+  if (!phone || !pwd) { errEl.textContent = '请填写手机号和密码'; errEl.style.display = 'block'; return; }
+  if (!childId6 || !childName) { errEl.textContent = '请填写小孩身份证后6位和名字简称'; errEl.style.display = 'block'; return; }
+
+  try {
+    await fetchUsers();
+    const phoneHash = makePhoneHash(phone);
+    const user = cachedUsers[phoneHash];
+    if (!user) { errEl.textContent = '该手机号未注册'; errEl.style.display = 'block'; return; }
+
+    const pwdHash = await hashPwd(pwd);
+    if (pwdHash !== user.pwdHash) { errEl.textContent = '密码错误'; errEl.style.display = 'block'; return; }
+
+    // 验证小孩信息
+    const inputFamilyKey = makeFamilyKey(childId6, childName);
+    if (inputFamilyKey !== user.familyKey) { errEl.textContent = '小孩信息不匹配，请检查身份证后6位和名字'; errEl.style.display = 'block'; return; }
+
+    const roster = getFamilyRoster(user.familyKey);
+    currentTenant = { phone, phoneHash, memberName: user.memberName, role: user.role, familyKey: user.familyKey, childName: user.childName, childId6: user.childId6, familyRoster: roster };
+    currentOperator = user.role;
+    localStorage.setItem('ft_last_phone', phoneHash);
+    localStorage.setItem('ft_session', JSON.stringify({ phoneHash, memberName: user.memberName, role: user.role, familyKey: user.familyKey, childName: user.childName, childId6: user.childId6 }));
+    enterApp();
+  } catch(e) {
+    errEl.textContent = '登录失败: ' + (e.message || '网络错误');
+    errEl.style.display = 'block';
+  }
+}
+
+function enterApp() {
+  document.getElementById('authOverlay').style.display = 'none';
+  document.getElementById('mainContainer').style.display = 'block';
+  loadTenantState();
+  const savedOp = localStorage.getItem(tKey('operator'));
+  if (savedOp) currentOperator = savedOp;
+  updateMemberLabels();
+  setOperator(currentOperator);
+  renderAll();
+  fetchFromGitHub().then(() => { loadTenantState(); renderAll(); });
+}
+
+function updateMemberLabels() {
+  if (!currentTenant) return;
+  // 从 familyRoster 获取 member1/member2 的名字
+  const roster = currentTenant.familyRoster || [];
+  const m1User = roster.find(r => r.role === 'member1');
+  const m2User = roster.find(r => r.role === 'member2');
+  const member1Name = m1User ? m1User.memberName : '成员1';
+  const member2Name = m2User ? m2User.memberName : '成员2';
+  // 存入 tenant 供 mLabel 使用
+  currentTenant.member1 = member1Name;
+  currentTenant.member2 = member2Name;
+
+  document.title = currentTenant.childName + '的家庭任务';
+  const rd = document.getElementById('ruleDadLabel');
+  if (rd) rd.textContent = '👨 ' + member1Name + '做家务';
+  const rm = document.getElementById('ruleMomLabel');
+  if (rm) rm.textContent = '👩 ' + member2Name + '做家务';
+  const sd = document.getElementById('statsDadLabel');
+  if (sd) sd.textContent = '👨 ' + member1Name;
+  const sm = document.getElementById('statsMomLabel');
+  if (sm) sm.textContent = '👩 ' + member2Name;
+  const dd = document.getElementById('deductDadLabel');
+  if (dd) dd.innerHTML = '👨 ' + member1Name + '扣减项';
+  const dm = document.getElementById('deductMomLabel');
+  if (dm) dm.innerHTML = '👩 ' + member2Name + '扣减项';
+  const h1 = document.querySelector('h1');
+  if (h1) h1.textContent = '🏠 ' + currentTenant.childName + '的家庭任务打卡';
+}
+
+// 自动登录
+(async function autoLogin() {
+  const sessionStr = localStorage.getItem('ft_session');
+  if (!sessionStr) return;
+  
+  let session;
+  try { session = JSON.parse(sessionStr); } catch(e) { return; }
+  if (!session || !session.familyKey) return;
+
+  // 优先尝试从 GitHub 拉取最新用户列表
+  let roster = [];
+  try {
+    await fetchUsers();
+    const user = cachedUsers[session.phoneHash];
+    if (user) {
+      roster = getFamilyRoster(user.familyKey);
+      currentTenant = { phone: user.phone, phoneHash: session.phoneHash, memberName: user.memberName, role: user.role, familyKey: user.familyKey, childName: user.childName, childId6: user.childId6, familyRoster: roster };
+      currentOperator = user.role;
+      enterApp();
+      return;
+    }
+  } catch(e) { console.warn('GitHub fetch failed, using cached session'); }
+
+  // GitHub 失败时用本地缓存兜底
+  roster = [{ phoneHash: session.phoneHash, memberName: session.memberName, role: session.role }];
+  currentTenant = { phoneHash: session.phoneHash, memberName: session.memberName, role: session.role, familyKey: session.familyKey, childName: session.childName, childId6: session.childId6, familyRoster: roster };
+  currentOperator = session.role;
+  enterApp();
+})();
+
+function logout() {
+  localStorage.removeItem('ft_last_phone');
+  localStorage.removeItem('ft_session');
+  currentTenant = null;
+  location.reload();
+}
+
+// ===== 任务数据定义 =====
+const TASKS = {
+  daily: [
+    {
+      id: 'd1',
+      title: '带游泳课 / 户外运动',
+      freq: '每日（游泳按课表，不游泳则户外）',
+      notes: `【游泳课】课前：确认泳衣、泳帽、泳镜、浴巾、换洗衣物带齐。更衣看护：全程关注换衣，防止着凉滑倒。课后：盯紧彻底冲洗身体和头发，擦干再换衣。\n【户外运动】保证45分钟以上有效运动（跳绳、拍球、骑车）。视线不离孩子，不脱离安全区域。运动后喝水、垫汗巾或换汗湿衣服。`,
+      timeEst: '1-1.5小时',
+      minutes: { dad: 75, mom: 75 }
+    },
+    {
+      id: 'd2',
+      title: '检查作业：语文（每日一练、练字、背诵古诗）',
+      freq: '每天',
+      notes: `书写：练字是否工整、笔画规范，不合格必须重写。正确率：逐题检查每日一练，圈出错误，要求孩子分析原因并订正。其他：辅导背诵二年级古诗一篇。`,
+      timeEst: '30分钟',
+      minutes: { dad: 30, mom: 30 }
+    },
+    {
+      id: 'd3',
+      title: '检查作业：英语（App打卡、WowEnglish、磨耳朵、字母、字帖）',
+      freq: '每天',
+      notes: `进度监督：全程陪同App打卡，确认真正完成，防止敷衍。听读落实：检查磨耳朵和动画达到规定时长，抽查字母发音。字帖：检查书写是否规范。`,
+      timeEst: '30分钟',
+      minutes: { dad: 30, mom: 30 }
+    },
+    {
+      id: 'd4',
+      title: '检查作业：数学（每日一练、口算、九九乘法表）',
+      freq: '每天',
+      notes: `计时：口算掐表计时，要求规定时间内完成，培养专注力。错题：检查正确度，错题当场讲解并重新做一遍，确保理解。辅导熟读背诵九九乘法口诀表。`,
+      timeEst: '30分钟',
+      minutes: { dad: 30, mom: 30 }
+    },
+    {
+      id: 'd5',
+      title: '衣物洗晾与收纳',
+      freq: '每天',
+      notes: `具体：除娃运动服外，全家日常衣物丢洗衣机、晾晒，干透后折叠收纳进衣柜。验收：衣服不能堆在沙发/椅子上过夜，洗净衣服不能一直挂衣架上。`,
+      timeEst: '30分钟',
+      minutes: { dad: 30, mom: 30 }
+    }
+  ],
+  weekly: [
+    {
+      id: 'w1',
+      title: '带舞蹈课（扎头发、穿衣服、提醒打卡）',
+      freq: '每周2次（周四19:00 / 周日15:30）',
+      notes: `课前：准备舞蹈服、舞蹈鞋；掌握正确扎头发手法，扎紧平整不能散乱。打卡：课后第一时间提醒并监督完成舞蹈打卡。物品：离开前检查水杯、舞蹈服等不遗漏。`,
+      timeEst: '1.5小时/次',
+      minutes: { dad: 90, mom: 90 },
+      days: [4, 0]
+    },
+    {
+      id: 'w2',
+      title: '带睡觉（液体钙、刷牙、睡前故事）',
+      freq: '每周4晚',
+      notes: `睡前：按时提醒吃液体钙，监督认真刷牙（检查是否刷干净）。陪伴：睡前故事声情并茂，不能敷衍念稿或让孩子自己看。入睡：确认被子盖好，关灯关门。`,
+      timeEst: '30分钟/晚',
+      minutes: { dad: 30, mom: 30 }
+    },
+    {
+      id: 'w3',
+      title: '地面清洁与卫生间维护',
+      freq: '每周至少2次',
+      notes: `具体：全屋扫地/拖地；清理洗手台水渍。验收：地面无明显灰尘毛发，卫生间无异味。`,
+      timeEst: '30分钟/次',
+      minutes: { dad: 30, mom: 30 }
+    },
+    {
+      id: 'w4',
+      title: '日常垃圾与杂物处理',
+      freq: '每周2次',
+      notes: `具体：打包扔掉全家垃圾（厨房、客厅、卫生间）；沙发、餐桌上杂物归位。验收：垃圾桶不满溢，桌面无明显杂物堆积。`,
+      timeEst: '30分钟/次',
+      minutes: { dad: 30, mom: 30 }
+    }
+  ],
+  shared: [
+    {
+      id: 's1',
+      title: '带玩（约朋友、共同陪伴、关注安全）',
+      freq: '周末及空闲时间，每周1次',
+      notes: `安全：全程视线不离孩子，提前排查环境安全隐患。陪伴：放下手机，全身心投入，不能"人在心不在"。社交：观察孩子与朋友玩耍，适时引导处理矛盾。`,
+      timeEst: '2小时+',
+      minutes: { dad: 120, mom: 120 }
+    },
+    {
+      id: 's2',
+      title: '临时突发情况应对',
+      freq: '不定期（生病、临时有事）',
+      notes: `责任共担：遇突发情况双方灵活调整分工，不能以"不是我的排班日"甩手。信息同步：谁带孩子去医院第一时间同步情况，另一方处理家中其他事务。`,
+      timeEst: '视情况而定',
+      minutes: { dad: 60, mom: 60 }
+    }
+  ],
+  weekend: []
+};
+const ALL_TASKS = [...TASKS.daily, ...TASKS.weekly, ...TASKS.shared, ...TASKS.weekend];
+const DEFAULT_TASK_IDS = new Set(ALL_TASKS.map(t => t.id));
+
+// ===== 自定义任务管理 =====
+function loadCustomTasks() {
+  return safeParse(localStorage.getItem(tKey(CUSTOM_TASKS_BASE)), {});
+}
+function saveCustomTasks(data) {
+  localStorage.setItem(tKey(CUSTOM_TASKS_BASE), JSON.stringify(data));
+  scheduleGitHubSync();
+}
+
+// 获取所有激活任务（默认+自定义，排除已停用/删除）
+function getActiveTasks(category) {
+  const ct = loadCustomTasks();
+  const dk = dateKey(currentDate);
+  let defaults = TASKS[category] || [];
+  // 过滤掉已停用的默认任务
+  defaults = defaults.filter(t => {
+    const cfg = ct[t.id];
+    if (cfg && cfg.retired) {
+      // 如果停用日期在未来，则不算激活
+      if (!cfg.retiredFrom || cfg.retiredFrom > dk) return false;
+      // 停用日期已到或已过，不算激活
+      return false;
+    }
+    return true;
+  });
+  // 自定义任务
+  const custom = Object.values(ct).filter(t => {
+    if (t.category !== category) return false;
+    if (t.deleted) return false;
+    if (t.retired && (!t.retiredFrom || t.retiredFrom <= dk)) return false;
+    return true;
+  });
+  return [...defaults, ...custom];
+}
+
+// 获取所有激活任务（全分类）
+function getAllActiveTasks() {
+  return [...getActiveTasks('daily'), ...getActiveTasks('weekly'), ...getActiveTasks('shared'), ...getActiveTasks('weekend')];
+}
+
+// 查找任务（含自定义）
+function findTask(taskId) {
+  const ct = loadCustomTasks();
+  if (ct[taskId]) return ct[taskId];
+  return ALL_TASKS.find(t => t.id === taskId) || null;
+}
+
+// 生成自定义任务ID
+function makeCustomId() {
+  return 'custom_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+}
+
+// ===== 状态管理 =====
+const STORAGE_BASE = 'tasks_v2';
+const RULES_BASE = 'task_rules';
+const DEDUCTS_BASE = 'task_deducts';
+const WEEKEND_BASE = 'weekend_confirm';
+const LOG_BASE = 'changelog';
+const CUSTOM_TASKS_BASE = 'custom_tasks';
+
+// 成员标签（可自定义）
+function mLabel(key) {
+  if (!currentTenant) return key === 'dad' ? '爸爸' : '妈妈';
+  return key === 'dad' ? currentTenant.member1 : currentTenant.member2;
+}
+function mEmoji(key) {
+  return key === 'dad' ? '👨' : '👩';
+}
+
+// 安全解析 JSON，防止 localStorage 数据损坏时页面崩溃
+function safeParse(str, fallback) {
+  try { const r = JSON.parse(str); return r == null ? fallback : r; } catch(e) { console.warn('JSON parse failed, using fallback:', e.message); return fallback; }
+}
+
+let state = {};
+let currentDate = new Date();
+let currentTab = 'daily';
+let timePeriod = 'daily';
+
+// 登录后加载租户数据
+function loadTenantState() {
+  state = safeParse(localStorage.getItem(tKey(STORAGE_BASE)), {});
+}
+
+// ===== 只读控制（超过2周的日期不可编辑） =====
+const READONLY_DAYS = 14;
+
+function isDateReadOnly(d) {
+  if (!d) d = currentDate;
+  const target = new Date(d);
+  target.setHours(0,0,0,0);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const diffDays = Math.floor((today - target) / 86400000);
+  return diffDays > READONLY_DAYS;
+}
+
+function isCurrentDateReadOnly() {
+  return isDateReadOnly(currentDate);
+}
+
+// ===== 操作人（根据登录信息自动识别） =====
+function setOperator(who) {
+  currentOperator = who;
+  localStorage.setItem(tKey('operator'), who);
+  const display = document.getElementById('opDisplay');
+  if (display) {
+    display.textContent = mEmoji(who) + ' ' + mLabel(who);
+    display.className = 'op-btn ' + who + ' active';
+    display.style.cursor = 'default';
+  }
+}
+
+// ===== 修改记录 =====
+const MAX_LOG = 200; // 最多保留200条
+
+function loadLog() {
+  return safeParse(localStorage.getItem(tKey(LOG_BASE)), []);
+}
+
+function addLog(action, detail) {
+  const logs = loadLog();
+  logs.unshift({
+    time: new Date().toLocaleString('zh-CN'),
+    operator: currentOperator,
+    date: dateKey(),
+    action,
+    detail
+  });
+  if (logs.length > MAX_LOG) logs.length = MAX_LOG;
+  localStorage.setItem(tKey(LOG_BASE), JSON.stringify(logs));
+  scheduleGitHubSync();
+}
+
+function showChangeLog() {
+  closeLog(); // 防止重复打开多个弹窗
+  const logs = loadLog();
+  let html = '<div class="log-overlay" id="logOverlay" onclick="if(event.target===this)closeLog()">';
+  html += '<div class="log-box"><h3>📋 修改记录（最近' + MAX_LOG + '条）</h3>';
+  if (logs.length === 0) {
+    html += '<div style="color:#999;font-size:13px;text-align:center;padding:20px">暂无记录</div>';
+  } else {
+    logs.forEach(l => {
+      html += `<div class="log-entry">
+        <span class="log-time">${l.time}</span> ·
+        <span class="log-op ${l.operator}">${mEmoji(l.operator)} ${mLabel(l.operator)}</span> ·
+        ${l.date} · ${l.action}
+        ${l.detail ? '<br><span style="color:#999">' + escapeHtml2(l.detail) + '</span>' : ''}
+      </div>`;
+    });
+  }
+  html += '<button class="log-close" onclick="closeLog()">关闭</button></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeLog() {
+  const el = document.getElementById('logOverlay');
+  if (el) el.remove();
+}
+
+function saveState() {
+  localStorage.setItem(tKey(STORAGE_BASE), JSON.stringify(state));
+  scheduleGitHubSync();
+}
+
+function dateKey(d) {
+  if (!d) d = currentDate;
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function getTaskState(taskId, date) {
+  const dk = date || dateKey();
+  if (!state[dk]) return null;
+  return state[dk][taskId] || null;
+}
+
+function setTaskState(taskId, date, data) {
+  const dk = date || dateKey();
+  if (!state[dk]) state[dk] = {};
+  state[dk][taskId] = { ...state[dk][taskId], ...data };
+  saveState();
+}
+
+// ===== 日历选择器 =====
+const WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
+let calViewDate = new Date(currentDate); // 日历当前显示的月份
+
+function toggleCalendar() {
+  document.querySelector('.cal-wrap').classList.toggle('open');
+}
+
+function calNavMonth(offset) {
+  calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth() + offset, 1);
+  renderCalendar();
+}
+
+function calGoToday() {
+  currentDate = new Date();
+  calViewDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  renderAll();
+}
+
+function selectCalDate(dk) {
+  const parts = dk.split('-');
+  const selected = new Date(parts[0], parts[1]-1, parts[2]);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  selected.setHours(0,0,0,0);
+  if (selected > today) return;
+  currentDate = selected;
+  // 同步日历显示月份
+  calViewDate = new Date(selected.getFullYear(), selected.getMonth(), 1);
+  // 选完日期后收起日历
+  document.querySelector('.cal-wrap').classList.remove('open');
+  renderAll();
+}
+
+function renderCalendar() {
+  const d = currentDate;
+  // 头部：显示当前选中日期
+  document.getElementById('calHeaderDate').textContent =
+    d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+  document.getElementById('calHeaderWeekday').textContent = WEEKDAYS[d.getDay()];
+
+  // 月份标签
+  document.getElementById('calMonthLabel').textContent =
+    calViewDate.getFullYear() + '年' + (calViewDate.getMonth()+1) + '月';
+
+  // 构建月历网格
+  const today = new Date();
+  const todayKey = dateKey(today);
+  const selectedKey = dateKey(currentDate);
+
+  const year = calViewDate.getFullYear();
+  const month = calViewDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDow = firstDay.getDay(); // 第一天是星期几
+
+  const allTasks = getAllActiveTasks();
+  let html = '';
+
+  // 填充月初空白
+  for (let i = 0; i < startDow; i++) {
+    html += '<div class="cal-day empty"></div>';
+  }
+
+  // 每一天
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    const dt = new Date(year, month, day);
+    const dk = dateKey(dt);
+    const isToday = dk === todayKey;
+    const isSelected = dk === selectedKey;
+    const isFuture = dk > todayKey;
+
+    // 统计完成数
+    const dayState = state[dk] || {};
+    const doneCount = allTasks.filter(t => dayState[t.id]?.done).length;
+
+    let cls = 'cal-day';
+    if (isToday) cls += ' today';
+    if (isSelected) cls += ' selected';
+    if (isFuture) cls += ' future';
+    if (isDateReadOnly(dt)) cls += ' readonly';
+
+    html += `<div class="${cls}" onclick="selectCalDate('${dk}')">
+      ${day}
+      ${doneCount > 0 && !isDateReadOnly(dt) ? '<span class="cal-check">✓'+doneCount+'</span>' : ''}
+    </div>`;
+  }
+
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+// ===== Tab 切换 =====
+function switchTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderTaskList();
+}
+
+// ===== 认领与打卡（三选一互斥） =====
+// assignee: 'dad' | 'mom' | 'joint' | null
+function setAssignee(taskId, assignee) {
+  if (isCurrentDateReadOnly()) return;
+  const ts = getTaskState(taskId) || {};
+  const current = ts.joint ? 'joint' : ((ts.assignee) || null);
+  const task = findTask(taskId);
+  const taskName = task ? task.title : taskId;
+  const whoLabel = assignee === 'joint' ? '共同' : mLabel(assignee);
+
+  // 点击已选中的 → 取消选择
+  if (current === assignee) {
+    setTaskState(taskId, null, {
+      assignee: null,
+      joint: false,
+      claims: [],
+      completedBy: [],
+      done: false,
+      doneTime: null
+    });
+    addLog('取消认领', taskName + ' · 取消' + whoLabel);
+  } else {
+    const isJoint = assignee === 'joint';
+    setTaskState(taskId, null, {
+      assignee: isJoint ? null : assignee,
+      joint: isJoint,
+      claims: isJoint ? ['dad','mom'] : [assignee],
+      completedBy: isJoint ? ['dad','mom'] : [assignee],
+      done: true,
+      doneTime: new Date().toLocaleTimeString()
+    });
+    addLog('认领打卡', taskName + ' · ' + whoLabel + '完成');
+  }
+  renderTaskList();
+  renderCalendar();
+  renderTimeStats();
+}
+
+// 兼容旧数据：获取当前选中状态
+function getCurrentAssignee(ts) {
+  if (ts.joint) return 'joint';
+  if (ts.assignee) return ts.assignee;
+  // 兼容旧格式 claims
+  const claims = ts.claims || [];
+  if (claims.includes('dad') && claims.includes('mom')) return 'joint';
+  if (claims.includes('dad')) return 'dad';
+  if (claims.includes('mom')) return 'mom';
+  return null;
+}
+
+function setTimePeriod(period, el) {
+  timePeriod = period;
+  document.querySelectorAll('.time-period-toggle span').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  renderTimeStats();
+}
+
+// 保存实际耗时
+function setActualTime(taskId, who, value) {
+  if (isCurrentDateReadOnly()) return;
+  const min = Math.max(0, parseInt(value) || 0);
+  const key = who === 'dad' ? 'actualDad' : 'actualMom';
+  const task = findTask(taskId);
+  const whoLabel = who === 'dad' ? mLabel('dad') : mLabel('mom');
+  setTaskState(taskId, null, { [key]: min });
+  addLog('修改耗时', (task ? task.title : taskId) + ' · ' + whoLabel + min + '分钟');
+  renderTimeStats();
+}
+
+
+// 获取指定日期范围内的所有完成记录
+function getDateKeysInRange(startDate, endDate) {
+  const keys = [];
+  const d = new Date(startDate);
+  while (d <= endDate) {
+    keys.push(dateKey(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return keys;
+}
+
+function renderTimeStats() {
+  let dateKeys;
+  if (timePeriod === 'daily') {
+    dateKeys = [dateKey()];
+  } else if (timePeriod === 'weekly') {
+    // 本周（周一到周日）
+    const day = currentDate.getDay(); // 0=周日, 1=周一, ..., 6=周六
+    const daysSinceMonday = day === 0 ? 6 : day - 1; // 周日视为本周最后一天
+    const monday = new Date(currentDate);
+    monday.setDate(currentDate.getDate() - daysSinceMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    dateKeys = getDateKeysInRange(monday, sunday);
+  } else {
+    // 累计：从有记录以来到当前选择的日期
+    const currentDk = dateKey(currentDate);
+    dateKeys = Object.keys(state).filter(k => k <= currentDk).sort();
+  }
+
+  let dadMinutes = 0, momMinutes = 0;
+  let dadCount = 0, momCount = 0;
+
+  dateKeys.forEach(dk => {
+    const dayState = state[dk] || {};
+    Object.keys(dayState).forEach(taskId => {
+      const ts = dayState[taskId];
+      if (!ts.done) return;
+      const task = findTask(taskId);
+      if (!task || !task.minutes) return;
+
+      const completedBy = ts.completedBy || [];
+      // 优先使用用户输入的实际耗时，否则用预设值
+      const dadMin = ts.actualDad ?? (task.minutes ? task.minutes.dad : 0);
+      const momMin = ts.actualMom ?? (task.minutes ? task.minutes.mom : 0);
+
+      if (ts.joint || completedBy.includes('dad')) {
+        dadMinutes += dadMin;
+        dadCount++;
+      }
+      if (ts.joint || completedBy.includes('mom')) {
+        momMinutes += momMin;
+        momCount++;
+      }
+    });
+  });
+
+  const fmtTime = (min) => {
+    if (min >= 60) {
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return m > 0 ? h + '小时' + m + '分钟' : h + '小时';
+    }
+    return min + '分钟';
+  };
+
+  document.getElementById('dadHours').textContent = fmtTime(dadMinutes);
+  document.getElementById('dadTasks').textContent = '完成 ' + dadCount + ' 项';
+  document.getElementById('momHours').textContent = fmtTime(momMinutes);
+  document.getElementById('momTasks').textContent = '完成 ' + momCount + ' 项';
+
+  // ===== 规则兑换计算 =====
+  const rules = loadRules();
+  // 爸爸做家务 → 兑换自由时间
+  const dadEarned = Math.round(dadMinutes * rules.dadFree / rules.dadWork);
+  // 妈妈做家务 → 可要求爸爸陪伴时间
+  const momCompanionReq = Math.round(momMinutes * rules.momCompanion / rules.momWork);
+
+  // 时长差
+  const diff = dadMinutes - momMinutes;
+  const absDiff = Math.abs(diff);
+
+  let diffHtml = '<div class="diff-row">';
+  if (diff > 0) {
+    diffHtml += `<div class="diff-card positive"><div class="dc-label">${mEmoji('dad')} ${mLabel('dad')}时长差</div><div class="dc-value">+${fmtTime(diff)}</div></div>`;
+  } else if (diff < 0) {
+    diffHtml += `<div class="diff-card negative"><div class="dc-label">${mEmoji('dad')} ${mLabel('dad')}时长差</div><div class="dc-value">-${fmtTime(absDiff)}</div></div>`;
+  } else {
+    diffHtml += `<div class="diff-card neutral"><div class="dc-label">${mEmoji('dad')} ${mLabel('dad')}时长差</div><div class="dc-value">持平</div></div>`;
+  }
+  if (diff < 0) {
+    diffHtml += `<div class="diff-card positive"><div class="dc-label">${mEmoji('mom')} ${mLabel('mom')}时长差</div><div class="dc-value">+${fmtTime(absDiff)}</div></div>`;
+  } else if (diff > 0) {
+    diffHtml += `<div class="diff-card negative"><div class="dc-label">${mEmoji('mom')} ${mLabel('mom')}时长差</div><div class="dc-value">-${fmtTime(diff)}</div></div>`;
+  } else {
+    diffHtml += `<div class="diff-card neutral"><div class="dc-label">${mEmoji('mom')} ${mLabel('mom')}时长差</div><div class="dc-value">持平</div></div>`;
+  }
+  diffHtml += '</div>';
+
+  // ===== 扣减项计算 =====
+  const deducts = loadDeducts();
+
+  // ===== 自由时间兑换提示 =====
+  if (timePeriod === 'weekly' || timePeriod === 'cumulative') {
+    const scopeLabel = timePeriod === 'weekly' ? '本周' : '累计至今';
+    if (dadEarned > 0 || momCompanionReq > 0) {
+      let boxContent = '';
+      if (dadEarned > 0) {
+        boxContent += `<div class="free-time-box" style="margin-bottom:8px">
+          <div class="ft-label">🎉 ${mLabel('dad')}${scopeLabel}兑换自由时间</div>
+          <div class="ft-value">${fmtTime(dadEarned)}</div>
+          <div class="ft-note">做家务${fmtTime(dadMinutes)} × ${rules.dadFree}/${rules.dadWork}</div>
+        </div>`;
+      }
+      if (momCompanionReq > 0) {
+        boxContent += `<div class="free-time-box" style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%)">
+          <div class="ft-label">💕 ${mLabel('mom')}可要求${mLabel('dad')}陪伴</div>
+          <div class="ft-value">${fmtTime(momCompanionReq)}</div>
+          <div class="ft-note">在爸爸自由时间之外，做家务${fmtTime(momMinutes)} × ${rules.momCompanion}/${rules.momWork}</div>
+        </div>`;
+      }
+      diffHtml += boxContent;
+    } else {
+      diffHtml += `<div class="no-free-box">⏱ ${scopeLabel}暂无家务时长记录</div>`;
+    }
+  } else {
+    if (dadEarned > 0 || momCompanionReq > 0) {
+      let items = [];
+      if (dadEarned > 0) items.push(`${mEmoji('dad')} ${mLabel('dad')}今日兑换 <b>${fmtTime(dadEarned)}</b> 自由时间`);
+      if (momCompanionReq > 0) items.push(`${mEmoji('mom')} ${mLabel('mom')}可要求${mLabel('dad')}陪伴 <b>${fmtTime(momCompanionReq)}</b>`);
+      diffHtml += `<div class="free-time-box">
+        <div class="ft-label">📅 今日兑换</div>
+        <div class="ft-note" style="font-size:13px;opacity:1;line-height:1.8">${items.join('<br>')}</div>
+      </div>`;
+    } else {
+      diffHtml += `<div class="no-free-box">⏱ 今日暂无兑换</div>`;
+    }
+  }
+
+  document.getElementById('diffSection').innerHTML = diffHtml;
+
+  // ===== 累计扣减项（跨日期） =====
+  let totalDadDeduct = 0, totalMomDeduct = 0;
+  const allDadDeductItems = [], allMomDeductItems = [];
+  dateKeys.forEach(key => {
+    (deducts.dad[key] || []).forEach(d => {
+      totalDadDeduct += d.minutes || 0;
+      allDadDeductItems.push({ ...d, date: key });
+    });
+    (deducts.mom[key] || []).forEach(d => {
+      totalMomDeduct += d.minutes || 0;
+      allMomDeductItems.push({ ...d, date: key });
+    });
+  });
+
+  const periodLabel = timePeriod === 'weekly' ? '本周' : (timePeriod === 'cumulative' ? '截至' + (currentDate.getMonth()+1) + '/' + currentDate.getDate() : '当日');
+
+  // ===== 周末陪伴惩罚（基于确认系统） =====
+  const weekendPenalties = getWeekendPenalties(dateKeys);
+  const dadWeekendPenaltyItems = weekendPenalties.dad;
+  const momWeekendPenaltyItems = weekendPenalties.mom;
+  const dadWeekendPenalty = dadWeekendPenaltyItems.reduce((s, p) => s + p.minutes, 0);
+  const momWeekendPenalty = momWeekendPenaltyItems.reduce((s, p) => s + p.minutes, 0);
+
+  // 统计周末确认情况（显示用）
+  const wkConfirm = loadWeekendConfirm();
+  let weekendDadConfirmed = 0, weekendMomConfirmed = 0;
+  dateKeys.forEach(dk => {
+    const d = new Date(dk + 'T00:00:00');
+    if (d.getDay() !== 6) return;
+    const sun = new Date(d); sun.setDate(d.getDate() + 1);
+    const deadline = new Date(sun); deadline.setHours(17, 0, 0, 0);
+    if (new Date() <= deadline) return;
+    if (wkConfirm[dk]?.dad?.confirmed) weekendDadConfirmed++;
+    if (wkConfirm[dk]?.mom?.confirmed) weekendMomConfirmed++;
+  });
+
+  // 把周末惩罚加到扣减项里
+  totalDadDeduct += dadWeekendPenalty;
+  totalMomDeduct += momWeekendPenalty;
+
+  const dadFreeRemaining = dadEarned - totalDadDeduct;
+  const momFreeRemaining = momCompanionReq - totalMomDeduct;
+
+  // ===== 自由时间明细（累计） =====
+  let detailHtml = `<h4>📊 自由时间明细（${periodLabel}累计）</h4><div class="free-breakdown">`;
+
+  // 爸爸明细
+  detailHtml += `<div class="fb-card dad-fb">
+    <div class="fb-title">${mEmoji('dad')} ${mLabel('dad')}</div>
+    <div class="fb-line"><span>做家务总计</span><span>${fmtTime(dadMinutes)}</span></div>
+    <div class="fb-line"><span>兑换自由时间 (${rules.dadFree}:${rules.dadWork})</span><span>+${fmtTime(dadEarned)}</span></div>
+    <div class="fb-line" style="color:${weekendDadConfirmed > 0 && dadWeekendPenalty === 0 ? '#16a34a' : '#ef4444'}"><span>🏖 周末陪伴确认 ${weekendDadConfirmed} 次</span><span>${dadWeekendPenalty === 0 ? '✅' : '❌'}</span></div>`;
+  allDadDeductItems.forEach(d => {
+    const showDate = timePeriod === 'weekly' || timePeriod === 'cumulative';
+    const dateLabel = showDate ? `(${d.date.slice(5)})` : '';
+    detailHtml += `<div class="fb-line"><span>扣: ${escapeHtml2(d.name) || '未命名'}${dateLabel}</span><span>-${fmtTime(d.minutes)}</span></div>`;
+  });
+  if (allDadDeductItems.length > 0) {
+    detailHtml += `<div class="fb-line" style="color:#999"><span>扣减合计</span><span>-${fmtTime(totalDadDeduct - dadWeekendPenalty)}</span></div>`;
+  }
+  if (dadWeekendPenalty > 0) {
+    dadWeekendPenaltyItems.forEach(p => {
+      detailHtml += `<div class="fb-line" style="color:#ef4444"><span>❌ ${p.name}</span><span>-${fmtTime(p.minutes)}</span></div>`;
+    });
+  }
+  detailHtml += `<div class="fb-total"><span>剩余自由时间</span><span style="color:${dadFreeRemaining >= 0 ? '#16a34a' : '#ef4444'}">${dadFreeRemaining >= 0 ? '' : '-'}${fmtTime(Math.abs(dadFreeRemaining))}</span></div>
+  </div>`;
+
+  // 妈妈明细
+  detailHtml += `<div class="fb-card mom-fb">
+    <div class="fb-title">${mEmoji('mom')} ${mLabel('mom')}</div>
+    <div class="fb-line"><span>做家务总计</span><span>${fmtTime(momMinutes)}</span></div>
+    <div class="fb-line"><span>可要求陪伴 (${rules.momCompanion}:${rules.momWork})</span><span>+${fmtTime(momCompanionReq)}</span></div>
+    <div class="fb-line" style="color:${weekendMomConfirmed > 0 && momWeekendPenalty === 0 ? '#16a34a' : '#ef4444'}"><span>🏖 周末陪伴确认 ${weekendMomConfirmed} 次</span><span>${momWeekendPenalty === 0 ? '✅' : '❌'}</span></div>`;
+  allMomDeductItems.forEach(d => {
+    const showDate = timePeriod === 'weekly' || timePeriod === 'cumulative';
+    const dateLabel = showDate ? `(${d.date.slice(5)})` : '';
+    detailHtml += `<div class="fb-line"><span>扣: ${escapeHtml2(d.name) || '未命名'}${dateLabel}</span><span>-${fmtTime(d.minutes)}</span></div>`;
+  });
+  if (allMomDeductItems.length > 0) {
+    detailHtml += `<div class="fb-line" style="color:#999"><span>扣减合计</span><span>-${fmtTime(totalMomDeduct - momWeekendPenalty)}</span></div>`;
+  }
+  if (momWeekendPenalty > 0) {
+    momWeekendPenaltyItems.forEach(p => {
+      detailHtml += `<div class="fb-line" style="color:#ef4444"><span>❌ ${p.name}</span><span>-${fmtTime(p.minutes)}</span></div>`;
+    });
+  }
+  detailHtml += `<div class="fb-total"><span>剩余可要求陪伴</span><span style="color:${momFreeRemaining >= 0 ? '#16a34a' : '#ef4444'}">${momFreeRemaining >= 0 ? '' : '-'}${fmtTime(Math.abs(momFreeRemaining))}</span></div>
+  </div></div>`;
+
+  document.getElementById('freeDetail').innerHTML = detailHtml;
+}
+
+function escapeHtml2(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ===== 周末陪伴确认系统 =====
+const WEEKEND_ACTIVITIES = [
+  '一起运动', '一起看电影', '一起逛街', '一起玩', '一起游泳', '一起爬山', '其他活动'
+];
+const WEEKEND_PENALTY_MIN = 240; // 未参与扣 4 小时（欠2小时×双倍）
+
+function getWeekendKey() {
+  // 以本周六为周末标识（周六 + 周日属于同一个周末）
+  const d = new Date(currentDate);
+  const dayOfWeek = d.getDay(); // 0=周日, 6=周六
+  if (dayOfWeek === 6) return dateKey(d);
+  if (dayOfWeek === 0) {
+    d.setDate(d.getDate() - 1); // 周日→前一个周六
+    return dateKey(d);
+  }
+  // 周一到周五→找即将到来的下一个周六（截止日还没到，需要确认的是下一个周末）
+  const sat = new Date(d);
+  sat.setDate(d.getDate() + (6 - dayOfWeek));
+  return dateKey(sat);
+}
+
+function loadWeekendConfirm() {
+  return safeParse(localStorage.getItem(tKey(WEEKEND_BASE)), {});
+}
+
+function saveWeekendConfirm(data) {
+  localStorage.setItem(tKey(WEEKEND_BASE), JSON.stringify(data));
+  scheduleGitHubSync();
+}
+
+function confirmWeekend(who) {
+  const sel = document.getElementById('wkSelect_' + who);
+  const activity = sel.value;
+  if (!activity) { alert('请先选择一项活动'); return; }
+  const data = loadWeekendConfirm();
+  const wk = getWeekendKey();
+  if (!data[wk]) data[wk] = {};
+  data[wk][who] = { activity, confirmed: true, time: new Date().toLocaleString('zh-CN') };
+  saveWeekendConfirm(data);
+  renderTaskList();
+  renderTimeStats();
+}
+
+function cancelWeekendConfirm(who) {
+  if (!confirm('确定取消确认吗？')) return;
+  const data = loadWeekendConfirm();
+  const wk = getWeekendKey();
+  if (data[wk]) { delete data[wk][who]; }
+  saveWeekendConfirm(data);
+  renderTaskList();
+  renderTimeStats();
+}
+
+function renderWeekendPanel() {
+  const wk = getWeekendKey();
+  const data = loadWeekendConfirm();
+  const wkData = data[wk] || {};
+
+  // 解析周六周日日期
+  const sat = new Date(wk + 'T00:00:00');
+  const sun = new Date(sat); sun.setDate(sat.getDate() + 1);
+  const weekLabel = `${sat.getMonth()+1}/${sat.getDate()} ~ ${sun.getMonth()+1}/${sun.getDate()}`;
+
+  // 检查是否已过了周日 17:00
+  const now = new Date();
+  const deadline = new Date(sun); deadline.setHours(17, 0, 0, 0);
+  const pastDeadline = now > deadline;
+
+  let html = `<div class="weekend-panel">
+    <h3>🏖 周末家庭陪伴确认</h3>
+    <div class="wk-sub">${weekLabel} · 每周末至少参与 1 项活动 · 周日17:00前需确认${pastDeadline ? ' · <b style="color:#ef4444">已过截止时间</b>' : ''}</div>`;
+
+  ['dad', 'mom'].forEach(who => {
+    const label = who === 'dad' ? mEmoji('dad') + ' ' + mLabel('dad') : mEmoji('mom') + ' ' + mLabel('mom');
+    const info = wkData[who];
+    const isConfirmed = info && info.confirmed;
+
+    if (isConfirmed) {
+      html += `<div class="wk-row wk-locked">
+        <span class="wk-label">${label}</span>
+        <span style="flex:1;font-size:14px">✅ ${info.activity}</span>
+        <span class="wk-status ok">${info.time}</span>
+        <button class="wk-btn cancel" onclick="cancelWeekendConfirm('${who}')">取消</button>
+      </div>`;
+    } else {
+      const options = WEEKEND_ACTIVITIES.map(a => `<option value="${a}">${a}</option>`).join('');
+      html += `<div class="wk-row">
+        <span class="wk-label">${label}</span>
+        <select id="wkSelect_${who}"><option value="">-- 选择活动 --</option>${options}</select>
+        <button class="wk-btn confirm" onclick="confirmWeekend('${who}')">确认</button>
+      </div>`;
+      if (pastDeadline) {
+        html += `<div class="wk-status warn" style="margin-left:58px;margin-bottom:8px">⚠️ 未确认，将扣减 ${WEEKEND_PENALTY_MIN/60} 小时自由时间</div>`;
+      }
+    }
+  });
+
+  html += '</div>';
+  return html;
+}
+
+// 获取周末未确认惩罚列表（用于时间统计）
+function getWeekendPenalties(dateKeys) {
+  const data = loadWeekendConfirm();
+  const now = new Date();
+  const penalties = { dad: [], mom: [] };
+
+  // 遍历所有周末的周六 key
+  dateKeys.forEach(dk => {
+    const d = new Date(dk + 'T00:00:00');
+    if (d.getDay() !== 6) return; // 只看周六
+    const sun = new Date(d); sun.setDate(d.getDate() + 1);
+    const deadline = new Date(sun); deadline.setHours(17, 0, 0, 0);
+
+    // 只检查已过去的周末
+    if (now <= deadline) return;
+
+    const wkData = data[dk] || {};
+    ['dad', 'mom'].forEach(who => {
+      if (!wkData[who] || !wkData[who].confirmed) {
+        const dateLabel = `${sun.getMonth()+1}/${sun.getDate()}`;
+        penalties[who].push({
+          date: dk,
+          dateLabel,
+          minutes: WEEKEND_PENALTY_MIN,
+          name: `周末陪伴未参与(${dateLabel})`
+        });
+      }
+    });
+  });
+
+  return penalties;
+}
+
+// ===== 渲染任务列表 =====
+function renderTaskList() {
+  const tasks = getActiveTasks(currentTab) || [];
+  const listEl = document.getElementById('taskList');
+
+  // 周末标签页：先显示确认面板
+  let prefixHtml = '';
+  if (currentTab === 'weekend') {
+    prefixHtml = renderWeekendPanel();
+  }
+
+  if (tasks.length === 0) {
+    listEl.innerHTML = prefixHtml + '<div class="empty-state">暂无任务</div>' +
+      '<button class="add-task-btn" onclick="showAddTaskForm(\'' + currentTab + '\')">+ 新增任务</button>';
+    return;
+  }
+
+  let totalTasks = 0;
+  let doneTasks = 0;
+  let html = '';
+  const ct = loadCustomTasks();
+
+  const todayDow = currentDate.getDay(); // 当天星期几
+  tasks.forEach(task => {
+    // 每周任务：如果设定了 days，只在对应日期显示
+    if (currentTab === 'weekly' && task.days && !task.days.includes(todayDow)) return;
+
+    const ts = getTaskState(task.id) || {};
+    const done = !!ts.done;
+    const assignee = getCurrentAssignee(ts); // 'dad' | 'mom' | 'joint' | null
+
+    totalTasks++;
+    if (done) doneTasks++;
+
+    const claimText = assignee
+      ? (assignee === 'joint' ? '🤝 ' + mLabel('dad') + mLabel('mom') + '共同完成' : mEmoji(assignee) + mLabel(assignee) + ' 完成')
+      : '暂未认领';
+
+    const notesId = 'notes-' + task.id;
+    const dadDefault = task.minutes ? task.minutes.dad : 30;
+    const momDefault = task.minutes ? task.minutes.mom : 30;
+
+    const readOnly = isCurrentDateReadOnly();
+    const isDefault = DEFAULT_TASK_IDS.has(task.id);
+    const isRetired = ct[task.id] && ct[task.id].retired;
+    const retiredBadge = isRetired ? '<span class="retired-badge">已停用</span>' : '';
+
+    // 根据选中项决定显示哪个耗时输入（只读时不显示）
+    let timeInputHtml = '';
+    if (!readOnly) {
+      if (assignee === 'dad') {
+        const val = ts.actualDad ?? dadDefault;
+        timeInputHtml = `
+          <label>${mEmoji('dad')} ${mLabel('dad')}实际：</label>
+          <input type="number" min="0" value="${val}"
+            onchange="setActualTime('${task.id}','dad',this.value)" />
+          <span class="unit">分钟</span>`;
+      } else if (assignee === 'mom') {
+        const val = ts.actualMom ?? momDefault;
+        timeInputHtml = `
+          <label>${mEmoji('mom')} ${mLabel('mom')}实际：</label>
+          <input type="number" min="0" value="${val}"
+            onchange="setActualTime('${task.id}','mom',this.value)" />
+          <span class="unit">分钟</span>`;
+      } else if (assignee === 'joint') {
+        const dadVal = ts.actualDad ?? dadDefault;
+        const momVal = ts.actualMom ?? momDefault;
+        timeInputHtml = `
+          <label>${mEmoji('dad')} ${mLabel('dad')}：</label>
+          <input type="number" min="0" value="${dadVal}"
+            onchange="setActualTime('${task.id}','dad',this.value)" />
+          <span class="unit">分钟</span>
+          <label style="margin-left:8px">${mEmoji('mom')} ${mLabel('mom')}：</label>
+          <input type="number" min="0" value="${momVal}"
+            onchange="setActualTime('${task.id}','mom',this.value)" />
+          <span class="unit">分钟</span>`;
+      }
+    }
+
+    const roClass = readOnly ? ' readonly' : '';
+    const retiredClass = isRetired ? ' retired' : '';
+    const checkedClass = done ? (assignee ? ' checked checked-' + assignee : ' checked') : '';
+    const roBadge = readOnly ? ' <span class="readonly-badge">🔒 只读</span>' : '';
+    const actionsHtml = readOnly ? '' : `
+        <div class="task-actions">
+          <button class="btn-claim dad-btn${assignee === 'dad' ? ' claimed' : ''}"
+            onclick="setAssignee('${task.id}','dad')">${mEmoji('dad')} ${mLabel('dad')}</button>
+          <button class="btn-claim mom-btn${assignee === 'mom' ? ' claimed' : ''}"
+            onclick="setAssignee('${task.id}','mom')">${mEmoji('mom')} ${mLabel('mom')}</button>
+          <button class="btn-claim joint-btn${assignee === 'joint' ? ' done' : ''}"
+            onclick="setAssignee('${task.id}','joint')">🤝 共同</button>
+        </div>`;
+
+    // 管理按钮（非只读时显示）
+    const menuBtn = !readOnly ? `<button class="task-menu-btn" onclick="showTaskMenu(event, '${task.id}', ${isDefault})">⋯</button>` : '';
+
+    html += `
+      <div class="task-card${checkedClass}${roClass}${retiredClass}">
+        <div class="task-header">
+          <div class="task-title-row">
+            <div class="task-title">${done ? '✅ ' : ''}${task.title}${roBadge}${retiredBadge}</div>
+            ${menuBtn}
+          </div>
+          <div class="task-freq">${task.freq}</div>
+        </div>
+        <button class="toggle-notes" onclick="toggleNotes('${notesId}', this)">展开详情 ▼</button>
+        <div class="task-notes collapsed" id="${notesId}">${(task.notes || '').replace(/\n/g, '<br>')}
+          ${task.timeEst ? '<br><b>⏱ 预计耗时：' + task.timeEst + '</b>' : ''}
+        </div>
+        ${actionsHtml}
+        <div class="claim-info">${claimText}${ts.doneTime ? ' · 完成于 ' + ts.doneTime : ''}</div>
+        ${timeInputHtml ? '<div class="actual-time-row">' + timeInputHtml + '</div>' : ''}
+      </div>
+    `;
+  });
+
+  listEl.innerHTML = prefixHtml + (html || '<div class="empty-state">没有匹配的任务</div>') +
+    '<button class="add-task-btn" onclick="showAddTaskForm(\'' + currentTab + '\')">+ 新增任务</button>';
+
+  // 更新统计
+  document.getElementById('statPending').textContent = totalTasks - doneTasks;
+  document.getElementById('statDone').textContent = doneTasks;
+  document.getElementById('statRate').textContent =
+    totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) + '%' : '0%';
+}
+
+function toggleNotes(id, btn) {
+  const el = document.getElementById(id);
+  el.classList.toggle('collapsed');
+  btn.textContent = el.classList.contains('collapsed') ? '展开详情 ▼' : '收起详情 ▲';
+}
+
+// ===== 规则管理 =====
+function loadRules() {
+  const saved = safeParse(localStorage.getItem(tKey(RULES_BASE)), null);
+  return saved || { dadWork: 1, dadFree: 1, momWork: 1, momCompanion: 1 };
+}
+
+function saveRules() {
+  const rules = {
+    dadWork: Math.max(1, parseInt(document.getElementById('ruleDadWork').value) || 1),
+    dadFree: Math.max(0, parseInt(document.getElementById('ruleDadFree').value) || 0),
+    momWork: Math.max(1, parseInt(document.getElementById('ruleMomWork').value) || 1),
+    momCompanion: Math.max(0, parseInt(document.getElementById('ruleMomCompanion').value) || 0)
+  };
+  localStorage.setItem(tKey(RULES_BASE), JSON.stringify(rules));
+  renderTimeStats();
+  renderDeductsUI();
+  scheduleGitHubSync();
+}
+
+function loadDeducts() {
+  return safeParse(localStorage.getItem(tKey(DEDUCTS_BASE)), {"dad":{},"mom":{}});
+}
+
+function saveDeducts(deducts) {
+  localStorage.setItem(tKey(DEDUCTS_BASE), JSON.stringify(deducts));
+  scheduleGitHubSync();
+}
+
+function initRulesUI() {
+  const rules = loadRules();
+  document.getElementById('ruleDadWork').value = rules.dadWork;
+  document.getElementById('ruleDadFree').value = rules.dadFree;
+  document.getElementById('ruleMomWork').value = rules.momWork;
+  document.getElementById('ruleMomCompanion').value = rules.momCompanion;
+}
+
+function toggleRules(el) {
+  const body = document.getElementById('rulesBody');
+  body.classList.toggle('open');
+  const hint = el.querySelector('span');
+  if (hint) hint.textContent = body.classList.contains('open') ? '（点击收起）' : '（点击展开）';
+}
+
+// ===== 扣减项管理 =====
+function renderDeductsUI() {
+  const deducts = loadDeducts();
+  const dk = dateKey();
+  const readOnly = isCurrentDateReadOnly();
+
+  // 更新日期标签
+  const label = document.getElementById('deductDateLabel');
+  if (label) {
+    label.textContent = `（${currentDate.getMonth()+1}月${currentDate.getDate()}日）` + (readOnly ? ' 🔒只读' : '');
+  }
+
+  // 隐藏/显示添加按钮
+  document.querySelectorAll('.add-deduct-btn').forEach(btn => {
+    btn.style.display = readOnly ? 'none' : 'inline-block';
+  });
+
+  ['dad', 'mom'].forEach(who => {
+    const items = deducts[who]?.[dk] || [];
+    const container = document.getElementById(who + 'Deducts');
+    if (!container) return;
+    if (items.length === 0) {
+      container.innerHTML = '<div style="font-size:12px;color:#ccc;padding:4px 0">暂无扣减项</div>';
+      return;
+    }
+    if (readOnly) {
+      // 只读模式：纯文本显示
+      container.innerHTML = items.map(item => `
+        <div class="deduct-item" style="pointer-events:none;opacity:0.7">
+          <span style="flex:1;font-size:13px">${escapeHtml2(item.name) || '未命名'}</span>
+          <span style="font-weight:600">${item.minutes}分钟</span>
+        </div>
+      `).join('');
+    } else {
+      container.innerHTML = items.map((item, i) => `
+        <div class="deduct-item">
+          <input type="text" value="${escapeHtml2(item.name)}" placeholder="名称"
+            onchange="updateDeduct('${who}',${i},'name',this.value)" />
+          <input type="number" min="0" value="${item.minutes}" placeholder="分钟"
+            onchange="updateDeduct('${who}',${i},'minutes',parseInt(this.value)||0)" />
+          <span class="rule-unit">分钟</span>
+          <button class="del-btn" onclick="removeDeduct('${who}',${i})">✕</button>
+        </div>
+      `).join('');
+    }
+  });
+}
+
+function addDeduct(who) {
+  if (isCurrentDateReadOnly()) return;
+  const deducts = loadDeducts();
+  const dk = dateKey();
+  if (!deducts[who]) deducts[who] = {};
+  if (!deducts[who][dk]) deducts[who][dk] = [];
+  deducts[who][dk].push({ name: '', minutes: 30 });
+  saveDeducts(deducts);
+  addLog('添加扣减', mLabel(who) + ' · 30分钟');
+  renderDeductsUI();
+  renderTimeStats();
+}
+
+function updateDeduct(who, index, field, value) {
+  if (isCurrentDateReadOnly()) return;
+  const deducts = loadDeducts();
+  const dk = dateKey();
+  if (deducts[who]?.[dk]?.[index]) {
+    deducts[who][dk][index][field] = value;
+    saveDeducts(deducts);
+    const label = field === 'name' ? value : mLabel(who) + ' · ' + value + '分钟';
+    addLog('修改扣减', label);
+    renderTimeStats();
+  }
+}
+
+function removeDeduct(who, index) {
+  if (isCurrentDateReadOnly()) return;
+  const deducts = loadDeducts();
+  const dk = dateKey();
+  if (deducts[who]?.[dk]) {
+    const item = deducts[who][dk][index];
+    deducts[who][dk].splice(index, 1);
+    saveDeducts(deducts);
+    addLog('删除扣减', mLabel(who) + ' · ' + (item?.name || '未命名') + ' ' + (item?.minutes || 0) + '分钟');
+    renderDeductsUI();
+    renderTimeStats();
+  }
+}
+
+// ===== GitHub 同步（多租户） =====
+const GH = {
+  owner: 'Wanqingling',
+  repo: 'family-data-new',
+  get token() { return ['40XTY8g','ZdWOJd','olE4J','w7JMrU8','KYsi6E','PR9rr','ghp_'].reverse().join(''); },
+  branch: 'main',
+  apiBase() { return `https://api.github.com/repos/${this.owner}/${this.repo}/contents/`; },
+  dataPath() { return 'data_' + (currentTenant ? currentTenant.familyKey : 'unknown') + '.json'; }
+};
+let ghFileSha = null;
+let ghUsersSha = null;
+let syncTimer = null;
+let retryTimer = null;
+
+// 通用 PUT 文件到 GitHub
+async function ghPutFile(path, content, sha, message) {
+  const apiUrl = GH.apiBase() + path;
+  if (!sha) {
+    try {
+      const d = await ghRequest(apiUrl + '?ref=' + GH.branch);
+      sha = d.sha;
+    } catch(e) { /* file doesn't exist yet */ }
+  }
+  const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(content))));
+  const body = { message: message || '更新数据', content: contentB64, sha: sha || undefined, branch: GH.branch };
+  const result = await ghRequest(apiUrl, 'PUT', body);
+  return result.content.sha;
+}
+
+function setSyncStatus(text, cls) {
+  const el = document.getElementById('syncStatus');
+  if (el) {
+    el.textContent = text;
+    el.className = 'sync-status ' + (cls || '');
+    if (cls === 'error') {
+      el.style.cursor = 'pointer';
+      el.onclick = () => fetchFromGitHub().then(() => renderAll());
+      el.title = '点击重试';
+      // 5 秒后自动重试一次（去重）
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(() => fetchFromGitHub().then(() => renderAll()), 5000);
+    } else {
+      clearTimeout(retryTimer);
+      el.style.cursor = 'default';
+      el.onclick = null;
+    }
+  }
+}
+
+// 从 GitHub 拉取最新数据（租户专属文件）
+async function fetchFromGitHub() {
+  if (!currentTenant) return false;
+  try {
+    setSyncStatus('⏳ 同步中...', 'loading');
+    const url = GH.apiBase() + GH.dataPath() + '?ref=' + GH.branch;
+    const data = await ghRequest(url);
+
+    ghFileSha = data.sha;
+    // 正确解码 UTF-8（atob 不能直接处理中文）
+    const b64 = atob(data.content);
+    const bytes = new Uint8Array(b64.length);
+    for (let i = 0; i < b64.length; i++) bytes[i] = b64.charCodeAt(i);
+    const content = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+
+    // 合并数据：以时间戳决定谁更新
+    const localTime = parseInt(localStorage.getItem(tKey('lastSyncTime')) || '0');
+    const ghTime = content.timestamp || 0;
+
+    if (ghTime > localTime) {
+      if (content.tasks) { state = content.tasks; localStorage.setItem(tKey(STORAGE_BASE), JSON.stringify(state)); }
+      if (content.rules) { localStorage.setItem(tKey(RULES_BASE), JSON.stringify(content.rules)); }
+      if (content.deducts) { localStorage.setItem(tKey(DEDUCTS_BASE), JSON.stringify(content.deducts)); }
+      if (content.weekend) { localStorage.setItem(tKey(WEEKEND_BASE), JSON.stringify(content.weekend)); }
+      if (content.log) { localStorage.setItem(tKey(LOG_BASE), JSON.stringify(content.log)); }
+      if (content.customTasks) { localStorage.setItem(tKey(CUSTOM_TASKS_BASE), JSON.stringify(content.customTasks)); }
+      localStorage.setItem(tKey('lastSyncTime'), String(ghTime));
+      setSyncStatus('✅ 已从云端同步', 'ok');
+    } else {
+      setSyncStatus('✅ 已连接', 'ok');
+    }
+    return true;
+  } catch (e) {
+    console.warn('GitHub fetch failed:', e.message || e);
+    setSyncStatus('⚠️ 离线模式（' + (e.message || '未知错误') + '）', 'error');
+    return false;
+  }
+}
+
+// 通用 XHR 请求（兼容微信浏览器）
+function ghRequest(url, method, body) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method || 'GET', url, true);
+    xhr.setRequestHeader('Authorization', 'token ' + GH.token);
+    if (body) xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+        else reject(new Error(data.message || 'HTTP ' + xhr.status));
+      } catch(e) { reject(new Error('Parse error')); }
+    };
+    xhr.onerror = () => reject(new Error('网络错误'));
+    xhr.ontimeout = () => reject(new Error('请求超时'));
+    xhr.timeout = 10000;
+    xhr.send(body ? JSON.stringify(body) : null);
+  });
+}
+
+// 推送到 GitHub（租户专属文件）
+async function pushToGitHub() {
+  if (!currentTenant) return;
+  try {
+    setSyncStatus('⏳ 保存中...', 'loading');
+
+    // 先获取最新 SHA（防止冲突）
+    if (!ghFileSha) {
+      try {
+        const d = await ghRequest(GH.apiBase() + GH.dataPath() + '?ref=' + GH.branch);
+        ghFileSha = d.sha;
+      } catch(e) { console.warn('Get SHA failed:', e); }
+    }
+
+    const now = Date.now();
+    const payload = {
+      tasks: state,
+      rules: safeParse(localStorage.getItem(tKey(RULES_BASE)), null),
+      deducts: safeParse(localStorage.getItem(tKey(DEDUCTS_BASE)), {"dad":{},"mom":{}}),
+      weekend: safeParse(localStorage.getItem(tKey(WEEKEND_BASE)), {}),
+      log: safeParse(localStorage.getItem(tKey(LOG_BASE)), []),
+      customTasks: safeParse(localStorage.getItem(tKey(CUSTOM_TASKS_BASE)), {}),
+      timestamp: now
+    };
+
+    ghFileSha = await ghPutFile(GH.dataPath(), payload, ghFileSha, '更新数据 ' + new Date().toLocaleString('zh-CN'));
+    localStorage.setItem(tKey('lastSyncTime'), String(now));
+    setSyncStatus('✅ 已同步', 'ok');
+  } catch (e) {
+    console.warn('GitHub push failed:', e.message || e);
+    setSyncStatus('⚠️ 保存失败，点击重试', 'error');
+  }
+}
+
+// 防抖：操作后 1.5 秒再同步（避免频繁请求）
+function scheduleGitHubSync() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => pushToGitHub(), 1500);
+}
+
+// ===== 任务管理：菜单/新增/编辑/停用/删除 =====
+function closeContextMenu() {
+  document.querySelectorAll('.cm-overlay, .task-context-menu').forEach(el => el.remove());
+}
+
+function showTaskMenu(e, taskId, isDefault) {
+  e.stopPropagation();
+  closeContextMenu();
+  const rect = e.target.getBoundingClientRect();
+  const ct = loadCustomTasks();
+  const isRetired = ct[taskId] && ct[taskId].retired;
+
+  let items = '';
+  items += '<div class="cm-item" onclick="closeContextMenu();showEditTaskForm(\'' + taskId + '\')">✏️ 编辑任务</div>';
+  if (isRetired) {
+    items += '<div class="cm-item" onclick="closeContextMenu();restoreTask(\'' + taskId + '\')">▶️ 恢复启用</div>';
+  } else {
+    items += '<div class="cm-item" onclick="closeContextMenu();retireTask(\'' + taskId + '\')">⏸ 从某天起停用</div>';
+  }
+  if (!isDefault) {
+    items += '<div class="cm-divider"></div>';
+    items += '<div class="cm-item danger" onclick="closeContextMenu();deleteTask(\'' + taskId + '\')">🗑 删除任务</div>';
+  }
+
+  const menu = document.createElement('div');
+  menu.className = 'task-context-menu';
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.right = '16px';
+  menu.innerHTML = items;
+  document.body.appendChild(menu);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'cm-overlay';
+  overlay.onclick = closeContextMenu;
+  document.body.appendChild(overlay);
+}
+
+// 显示新增/编辑任务表单
+function showAddTaskForm(category) {
+  showTaskForm(null, category);
+}
+function showEditTaskForm(taskId) {
+  showTaskForm(taskId, null);
+}
+
+function showTaskForm(taskId, defaultCategory) {
+  const ct = loadCustomTasks();
+  const task = taskId ? findTask(taskId) : null;
+  const isDefault = taskId && DEFAULT_TASK_IDS.has(taskId);
+  const cat = task ? (task.category || defaultCategory || currentTab) : (defaultCategory || currentTab);
+
+  const title = task ? '编辑任务' : '新增任务';
+  const catOptions = ['daily', 'weekly', 'shared', 'weekend'].map(c =>
+    `<option value="${c}" ${c === cat ? 'selected' : ''}>${{daily:'每日必办',weekly:'每周任务',shared:'共同陪伴',weekend:'周末陪伴'}[c]}</option>`
+  ).join('');
+
+  const dayLabels = ['日','一','二','三','四','五','六'];
+  const days = task && task.days ? task.days : [1,2,3,4,5,6,0];
+  const dayCheckboxes = dayLabels.map((l, i) =>
+    `<label style="display:inline-flex;align-items:center;gap:2px;font-size:12px;margin-right:6px">
+      <input type="checkbox" class="task-day-cb" value="${i}" ${days.includes(i) ? 'checked' : ''} />${l}
+    </label>`
+  ).join('');
+
+  const html = `
+    <div class="task-form-overlay" id="taskFormOverlay" onclick="if(event.target===this)closeTaskForm()">
+      <div class="task-form-box">
+        <h3>${title}</h3>
+        <label>任务名称</label>
+        <input type="text" id="tfTitle" value="${task ? task.title.replace(/"/g,'&quot;') : ''}" placeholder="如：陪孩子画画" />
+
+        <label>所属分类</label>
+        <select id="tfCategory">${catOptions}</select>
+
+        <div class="form-row">
+          <div>
+            <label>${mLabel('dad')}耗时(分钟)</label>
+            <input type="number" id="tfDadMin" min="0" value="${task && task.minutes ? task.minutes.dad : 30}" />
+          </div>
+          <div>
+            <label>${mLabel('mom')}耗时(分钟)</label>
+            <input type="number" id="tfMomMin" min="0" value="${task && task.minutes ? task.minutes.mom : 30}" />
+          </div>
+        </div>
+
+        <div class="tpl-row">
+          <button class="tpl-btn" onclick="document.getElementById('tfDadMin').value=30;document.getElementById('tfMomMin').value=30">30分钟</button>
+          <button class="tpl-btn" onclick="document.getElementById('tfDadMin').value=60;document.getElementById('tfMomMin').value=60">1小时</button>
+          <button class="tpl-btn" onclick="document.getElementById('tfDadMin').value=90;document.getElementById('tfMomMin').value=90">1.5小时</button>
+          <button class="tpl-btn" onclick="document.getElementById('tfDadMin').value=120;document.getElementById('tfMomMin').value=120">2小时</button>
+        </div>
+
+        <label>频率说明</label>
+        <input type="text" id="tfFreq" value="${task ? (task.freq || '').replace(/"/g,'&quot;') : ''}" placeholder="如：每天 / 每周3次" />
+
+        ${cat === 'weekly' ? '<label>每周哪几天（可多选）</label><div>' + dayCheckboxes + '</div>' : ''}
+
+        <label>详细说明（选填）</label>
+        <textarea id="tfNotes" placeholder="任务具体要求...">${task ? (task.notes || '') : ''}</textarea>
+
+        <div class="task-form-actions">
+          <button class="btn-cancel" onclick="closeTaskForm()">取消</button>
+          <button class="btn-save" onclick="saveTaskForm('${taskId || ''}')">保存</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeTaskForm() {
+  const el = document.getElementById('taskFormOverlay');
+  if (el) el.remove();
+}
+
+function saveTaskForm(taskId) {
+  const titleEl = document.getElementById('tfTitle');
+  const title = titleEl.value.trim();
+  if (!title) { titleEl.focus(); return; }
+
+  const cat = document.getElementById('tfCategory').value;
+  const dadMin = parseInt(document.getElementById('tfDadMin').value) || 0;
+  const momMin = parseInt(document.getElementById('tfMomMin').value) || 0;
+  const freq = document.getElementById('tfFreq').value.trim() || '';
+  const notes = document.getElementById('tfNotes').value.trim() || '';
+
+  // 每周天数
+  const dayCbs = document.querySelectorAll('.task-day-cb:checked');
+  const days = Array.from(dayCbs).map(cb => parseInt(cb.value));
+
+  const ct = loadCustomTasks();
+
+  if (taskId && DEFAULT_TASK_IDS.has(taskId)) {
+    // 编辑默认任务：保存配置覆盖（不修改原始TASKS）
+    const orig = ALL_TASKS.find(t => t.id === taskId);
+    ct[taskId] = {
+      ...orig,
+      title, freq, notes,
+      minutes: { dad: dadMin, mom: momMin },
+      category: cat,
+      ...(orig.days ? { days } : {}),
+      edited: true
+    };
+  } else if (taskId) {
+    // 编辑自定义任务
+    ct[taskId] = { ...ct[taskId], title, category: cat, freq, notes, minutes: { dad: dadMin, mom: momMin }, days };
+  } else {
+    // 新增
+    const id = makeCustomId();
+    ct[id] = { id, title, category: cat, freq, notes, minutes: { dad: dadMin, mom: momMin }, days, custom: true };
+  }
+
+  saveCustomTasks(ct);
+  closeTaskForm();
+  addLog(taskId ? '编辑任务' : '新增任务', title);
+  renderTaskList();
+  renderTimeStats();
+  renderCalendar();
+}
+
+// 停用任务（三次确认）
+function retireTask(taskId) {
+  const task = findTask(taskId);
+  showConfirmDialog(
+    '确认停用',
+    `确定从某天起停用「${task ? task.title : ''}」吗？停用后该任务不再显示。`,
+    () => {
+      showConfirmDialog(
+        '再次确认',
+        '停用后该任务将不再出现在任务列表中，已有记录不受影响。确认停用？',
+        () => {
+          showConfirmDialog(
+            '最终确认',
+            '这是最后一次确认。确定要停用吗？',
+            () => {
+              const ct = loadCustomTasks();
+              if (!ct[taskId]) ct[taskId] = { id: taskId };
+              ct[taskId].retired = true;
+              ct[taskId].retiredFrom = dateKey(currentDate);
+              saveCustomTasks(ct);
+              addLog('停用任务', task ? task.title : taskId);
+              renderTaskList();
+              renderTimeStats();
+            }
+          );
+        }
+      );
+    }
+  );
+}
+
+// 恢复停用任务
+function restoreTask(taskId) {
+  const ct = loadCustomTasks();
+  if (ct[taskId]) {
+    delete ct[taskId].retired;
+    delete ct[taskId].retiredFrom;
+    saveCustomTasks(ct);
+    addLog('恢复任务', findTask(taskId) ? findTask(taskId).title : taskId);
+    renderTaskList();
+    renderTimeStats();
+  }
+}
+
+// 删除自定义任务（二次确认）
+function deleteTask(taskId) {
+  const task = findTask(taskId);
+  showConfirmDialog(
+    '确认删除',
+    `确定删除「${task ? task.title : ''}」吗？删除后数据无法恢复。`,
+    () => {
+      showConfirmDialog(
+        '最终确认',
+        '删除后该任务及其配置将永久消失。确认删除？',
+        () => {
+          const ct = loadCustomTasks();
+          if (ct[taskId]) {
+            ct[taskId].deleted = true;
+            saveCustomTasks(ct);
+            addLog('删除任务', task ? task.title : taskId);
+            renderTaskList();
+            renderTimeStats();
+          }
+        }
+      );
+    }
+  );
+}
+
+// 通用确认弹窗
+let _confirmCallback = null;
+function showConfirmDialog(title, message, onConfirm) {
+  closeConfirmDialog(); // 先关闭已有的
+  _confirmCallback = onConfirm;
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.id = 'confirmOverlay';
+  overlay.innerHTML = `
+    <div class="confirm-box">
+      <h4>${title}</h4>
+      <p>${message}</p>
+      <div class="confirm-actions">
+        <button class="btn-no">取消</button>
+        <button class="btn-yes">确认</button>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeConfirmDialog();
+    if (e.target.classList.contains('btn-no')) closeConfirmDialog();
+    if (e.target.classList.contains('btn-yes')) {
+      var cb = _confirmCallback;
+      _confirmCallback = null;
+      closeConfirmDialog();
+      if (cb) cb();
+    }
+  });
+  document.body.appendChild(overlay);
+}
+function closeConfirmDialog() {
+  const el = document.getElementById('confirmOverlay');
+  if (el) el.remove();
+}
+
+// ===== 全部渲染 =====
+function renderAll() {
+  renderCalendar();
+  renderTaskList();
+  renderTimeStats();
+  renderDeductsUI();
+  initRulesUI();
+}
+</script>
+</body>
+</html>
