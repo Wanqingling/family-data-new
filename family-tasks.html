@@ -1203,12 +1203,14 @@ function renderTimeStats() {
   if (timePeriod === 'daily') {
     dateKeys = [dateKey()];
   } else if (timePeriod === 'weekly') {
-    // 本周（周日到周六）
-    const sunday = new Date(currentDate);
-    sunday.setDate(currentDate.getDate() - currentDate.getDay());
-    const saturday = new Date(sunday);
-    saturday.setDate(sunday.getDate() + 6);
-    dateKeys = getDateKeysInRange(sunday, saturday);
+    // 本周（周一到周日）
+    const day = currentDate.getDay(); // 0=周日, 1=周一, ..., 6=周六
+    const daysSinceMonday = day === 0 ? 6 : day - 1; // 周日视为本周最后一天
+    const monday = new Date(currentDate);
+    monday.setDate(currentDate.getDate() - daysSinceMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    dateKeys = getDateKeysInRange(monday, sunday);
   } else {
     // 累计：从有记录以来到当前选择的日期
     const currentDk = dateKey(currentDate);
